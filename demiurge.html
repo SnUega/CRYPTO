@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRYPT // OBJECT Ω</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden}
+body{background:#eeece7;cursor:none}
+
+#c{position:fixed;inset:0;width:100%;height:100%}
+
+/* noise */
+#n{
+  position:fixed;inset:0;z-index:2;pointer-events:none;
+  mix-blend-mode:multiply;opacity:.032;
+  background:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.88' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E") 0 0/256px;
+}
+
+/* HUD */
+#hud{position:fixed;inset:0;z-index:10;pointer-events:none}
+.hid{
+  position:absolute;top:28px;left:48px;
+  font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:.2em;
+  color:#9a9692;opacity:0;animation:fi 1s .5s forwards;
+}
+.hid b{color:#8b3a3a;font-weight:400}
+.htag{
+  position:absolute;top:28px;right:48px;
+  font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:.14em;
+  color:#9a9692;border:1px solid rgba(154,150,146,.22);padding:3px 10px;
+  opacity:0;animation:fi 1s .7s forwards;
+  display:flex;align-items:center;gap:8px;
+}
+.pd{width:5px;height:5px;border-radius:50%;background:#8b3a3a;animation:pd 2.4s ease-in-out infinite}
+@keyframes pd{0%,100%{opacity:1}50%{opacity:.1}}
+
+/* Title — внизу, под объектом */
+.title-wrap{
+  position:absolute;bottom:60px;left:0;right:0;
+  display:flex;flex-direction:column;align-items:center;gap:0;
+  opacity:0;animation:fi 1.4s 1.2s forwards;
+}
+.title{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:clamp(80px,10vw,128px);font-weight:700;
+  letter-spacing:-.02em;line-height:.82;
+  text-transform:uppercase;color:#0e0d0b;
+  text-shadow:0 0 80px rgba(238,236,231,.95);
+}
+.sub{
+  font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:.28em;
+  color:#9a9692;margin-top:14px;
+}
+.sub b{color:#8b3a3a;font-weight:400}
+
+/* угловые метки */
+.corner{
+  position:absolute;font-family:'Share Tech Mono',monospace;
+  font-size:7px;letter-spacing:.14em;color:#c4c0b8;
+  opacity:0;animation:fi 1s .9s forwards;
+}
+.ctlx{top:68px;left:48px} .ctrx{top:68px;right:48px;text-align:right}
+.cblx{bottom:28px;left:48px} .cbrx{bottom:28px;right:48px;text-align:right}
+
+/* cursor */
+#cur,#cur-r{
+  position:fixed;border-radius:50%;pointer-events:none;z-index:9999;
+  transform:translate(-50%,-50%);will-change:left,top;
+}
+#cur{width:4px;height:4px;background:#2a2927;transition:width .1s,height .1s}
+#cur-r{
+  width:20px;height:20px;z-index:9998;
+  border:1px solid rgba(191,187,178,.6);
+  transition:border-color .2s,width .12s,height .12s;
+}
+
+/* dev hint */
+.dev{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  font-family:'Share Tech Mono',monospace;font-size:7px;letter-spacing:.16em;
+  color:#c4c0b8;z-index:20;pointer-events:none;
+  opacity:0;animation:fi .8s 3s forwards;
+}
+
+@keyframes fi{to{opacity:1}}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="n" aria-hidden="true"></div>
+
+<div id="hud">
+  <div class="hid">ARCHIVE // REG-ID <b>WA-0000-Ω</b></div>
+  <div class="htag"><div class="pd"></div>PASSIVE OBSERVATION</div>
+  <div class="corner ctlx">0.000 / 0.000</div>
+  <div class="corner ctrx">DEPTH: UNKNOWN</div>
+  <div class="corner cblx">AUTH: NONE</div>
+  <div class="corner cbrx">CLASS: TOTAL</div>
+  <div class="title-wrap">
+    <div class="title">OBJECT Ω</div>
+    <div class="sub">CLASSIFICATION: TOTAL  //  STATUS: <b>UNRESOLVED</b></div>
+  </div>
+</div>
+
+<div class="dev">MOVE MOUSE — SCROLL — OBSERVE</div>
+<div id="cur"  aria-hidden="true"></div>
+<div id="cur-r" aria-hidden="true"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<script>
+'use strict';
+
+/* ════════════════════════════════════════════════════════
+   OBJECT Ω — The Demiurge Engine
+
+   Философия рендера:
+   - Белая бездна = бесконечное пространство по Z
+   - Икосаэдр = не объект а граница между пространствами
+   - Живые полигоны = каждая грань имеет автономную жизнь
+   - Чернота внутри = отсутствие, а не цвет
+   - Z-axis first = глубина важнее плоскости
+════════════════════════════════════════════════════════ */
+
+const W = () => window.innerWidth;
+const H = () => window.innerHeight;
+
+/* ── Pointer ── */
+let MX=.5,MY=.5,PCX=W()/2,PCY=H()/2;
+let RX=PCX,RY=PCY;
+
+document.addEventListener('mousemove',e=>{
+  PCX=e.clientX;PCY=e.clientY;
+  MX=e.clientX/W();MY=e.clientY/H();
+},{passive:true});
+
+const $cur  = document.getElementById('cur');
+const $ring = document.getElementById('cur-r');
+;(function cl(){
+  requestAnimationFrame(cl);
+  RX+=(PCX-RX)*.11;RY+=(PCY-RY)*.11;
+  $cur.style.left  = PCX+'px'; $cur.style.top  = PCY+'px';
+  $ring.style.left = (RX|0)+'px'; $ring.style.top = (RY|0)+'px';
+})();
+
+/* ════════════════════════════════════════════════════════
+   RENDERER
+════════════════════════════════════════════════════════ */
+const canvas   = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({
+  canvas, antialias:true,
+  alpha:false,
+});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(W(),H());
+renderer.setClearColor(0xeeece7, 1);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type    = THREE.PCFSoftShadowMap;
+
+const scene  = new THREE.Scene();
+// Туман — белизна уходит в бесконечность по Z
+// Не просто fog а ощущение что пространство не заканчивается
+scene.fog = new THREE.FogExp2(0xeeece7, 0.038);
+
+const camera = new THREE.PerspectiveCamera(52, W()/H(), 0.01, 200);
+camera.position.set(0, 0, 5.2);
+
+/* ════════════════════════════════════════════════════════
+   LIGHTING — белая бездна освещена равномерно
+   но объект имеет направленный свет чтобы грани читались
+════════════════════════════════════════════════════════ */
+// Ambient — общий белый свет бездны
+const amb = new THREE.AmbientLight(0xf0ede6, 0.42);
+scene.add(amb);
+
+// Hemisphere — небо/земля
+const hemi = new THREE.HemisphereLight(0xf8f6f2, 0xe8e4de, 0.35);
+scene.add(hemi);
+
+// Key — направленный, создаёт грани
+const key = new THREE.DirectionalLight(0xffffff, 0.9);
+key.position.set(3, 5, 4);
+key.castShadow = true;
+key.shadow.mapSize.setScalar(2048);
+key.shadow.camera.near = 0.1;
+key.shadow.camera.far  = 30;
+key.shadow.camera.left = key.shadow.camera.bottom = -4;
+key.shadow.camera.right= key.shadow.camera.top = 4;
+key.shadow.radius = 16;
+scene.add(key);
+
+// Fill
+const fill = new THREE.DirectionalLight(0xeeeae0, 0.22);
+fill.position.set(-3,-2,2);
+scene.add(fill);
+
+// Rim — подчёркивает контур
+const rim = new THREE.DirectionalLight(0xe0e8f4, 0.28);
+rim.position.set(0,0,-8);
+scene.add(rim);
+
+// Cursor point light
+const cLight = new THREE.PointLight(0xfff8f0, 0.6, 16);
+cLight.position.set(0,0,4);
+scene.add(cLight);
+
+/* ════════════════════════════════════════════════════════
+   SHADOW PLANE — тень под объектом
+   создаёт ощущение постамента в белой бездне
+════════════════════════════════════════════════════════ */
+const shadowPlane = new THREE.Mesh(
+  new THREE.PlaneGeometry(20,20),
+  new THREE.ShadowMaterial({opacity:.08, transparent:true})
+);
+shadowPlane.rotation.x = -Math.PI/2;
+shadowPlane.position.y = -2.2;
+shadowPlane.receiveShadow = true;
+scene.add(shadowPlane);
+
+// Тонкие кольца постамента
+for(let i=0;i<5;i++){
+  const t=i/4;
+  const r=0.5+t*2;
+  const pts=[];
+  for(let j=0;j<=80;j++){
+    const a=j/80*Math.PI*2;
+    pts.push(new THREE.Vector3(Math.cos(a)*r,0,Math.sin(a)*r*.18));
+  }
+  const ring=new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints(pts),
+    new THREE.LineBasicMaterial({color:0x4a4845,transparent:true,opacity:(1-t)*.045})
+  );
+  ring.position.y=-2.18;
+  scene.add(ring);
+}
+
+/* ════════════════════════════════════════════════════════
+   ДЫШАЩИЕ ЛИНИИ ПРОСТРАНСТВА
+   SVG-like но в 3D — плоскости LineSegments по Z
+════════════════════════════════════════════════════════ */
+function makeSpaceLines(){
+  const group = new THREE.Group();
+
+  // Горизонтальные плоскости на разных Z
+  const zLevels = [-2, -4, -7, -12, -20];
+  zLevels.forEach((z,zi) => {
+    const size = 18 + Math.abs(z)*1.4;
+    const opacity = .022 * (1 - zi*.15);
+    const count = 6;
+    for(let i=0;i<count;i++){
+      const y = -3 + (i/(count-1))*8;
+      const pts=[
+        new THREE.Vector3(-size, y, z),
+        new THREE.Vector3( size, y, z),
+      ];
+      const line = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(pts),
+        new THREE.LineBasicMaterial({color:0x4a4845,transparent:true,opacity})
+      );
+      group.add(line);
+    }
+    // вертикальные
+    const vcnt = 8;
+    for(let i=0;i<vcnt;i++){
+      const x = -size + (i/(vcnt-1))*size*2;
+      const pts=[
+        new THREE.Vector3(x,-4,z),
+        new THREE.Vector3(x, 4,z),
+      ];
+      const line = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(pts),
+        new THREE.LineBasicMaterial({color:0x4a4845,transparent:true,opacity:opacity*.7})
+      );
+      group.add(line);
+    }
+  });
+
+  return group;
+}
+const spaceLines = makeSpaceLines();
+scene.add(spaceLines);
+
+/* ════════════════════════════════════════════════════════
+   LIVING ICOSAHEDRON
+   Каждая грань — отдельный Mesh с независимой жизнью
+
+   Жизнь грани:
+   - displacement вдоль нормали (вдавливание / выпирание)
+   - независимая фаза и скорость
+   - при сильном вдавливании — "провал" открывает черноту
+   - редкие "всполохи" — грань резко уходит внутрь и возвращается
+════════════════════════════════════════════════════════ */
+
+// Базовая геометрия для вычисления граней
+const BASE_GEO = new THREE.IcosahedronGeometry(1, 1); // detail 1 = 80 граней
+
+// Разбираем на отдельные треугольники
+function decomposeToFaces(geometry) {
+  const pos = geometry.attributes.position;
+  const faces = [];
+  const faceCount = pos.count / 3;
+
+  for(let i=0;i<faceCount;i++){
+    const i3 = i*3;
+    const a = new THREE.Vector3().fromBufferAttribute(pos, i3);
+    const b = new THREE.Vector3().fromBufferAttribute(pos, i3+1);
+    const c = new THREE.Vector3().fromBufferAttribute(pos, i3+2);
+
+    // нормаль грани
+    const edge1 = new THREE.Vector3().subVectors(b,a);
+    const edge2 = new THREE.Vector3().subVectors(c,a);
+    const normal = new THREE.Vector3().crossVectors(edge1,edge2).normalize();
+
+    // центр грани
+    const center = new THREE.Vector3()
+      .add(a).add(b).add(c)
+      .divideScalar(3);
+
+    faces.push({ a,b,c,normal,center, i });
+  }
+  return faces;
+}
+
+const faceData = decomposeToFaces(BASE_GEO);
+
+// Материалы
+// Основной — почти белый, минимальный shininess
+const faceMat = new THREE.MeshPhongMaterial({
+  color:     0xe8e4dc,
+  emissive:  0x060504,
+  emissiveIntensity: 0.04,
+  shininess: 12,
+  specular:  new THREE.Color(0xd0ccc4),
+  transparent: true,
+  opacity: 0,
+  side: THREE.FrontSide,
+});
+
+// Черная изнанка — то что внутри
+// Не просто чёрный — unlit, не реагирует на свет вообще
+const innerMat = new THREE.MeshBasicMaterial({
+  color: 0x020202,
+  transparent: true,
+  opacity: 0,
+  side: THREE.BackSide,
+});
+
+// Wireframe рёбер — главный визуальный элемент
+// Тонкие линии контура
+const edgeMat = new THREE.LineBasicMaterial({
+  color: 0x3a3835,
+  transparent: true,
+  opacity: 0,
+});
+
+// Группа всего объекта
+const icoGroup = new THREE.Group();
+scene.add(icoGroup);
+
+// Создаём каждую грань отдельно
+const faceMeshes   = []; // внешняя сторона
+const innerMeshes  = []; // внутренняя (чернота)
+const edgeMeshes   = []; // рёбра
+const faceStates   = []; // состояние каждой грани
+
+const FACE_COUNT = faceData.length;
+
+faceData.forEach((fd,fi) => {
+  const { a,b,c,normal,center } = fd;
+
+  // Геометрия треугольника (чуть меньше чтобы был зазор)
+  const shrink = 0.96;
+  const sc = center.clone();
+  const sa = new THREE.Vector3().lerpVectors(sc,a,shrink);
+  const sb = new THREE.Vector3().lerpVectors(sc,b,shrink);
+  const scc = new THREE.Vector3().lerpVectors(sc,c,shrink);
+
+  const geo = new THREE.BufferGeometry();
+  const verts = new Float32Array([
+    sa.x,sa.y,sa.z,
+    sb.x,sb.y,sb.z,
+    scc.x,scc.y,scc.z,
+  ]);
+  const norms = new Float32Array([
+    normal.x,normal.y,normal.z,
+    normal.x,normal.y,normal.z,
+    normal.x,normal.y,normal.z,
+  ]);
+  geo.setAttribute('position', new THREE.BufferAttribute(verts,3));
+  geo.setAttribute('normal',   new THREE.BufferAttribute(norms,3));
+
+  // Внешняя грань
+  const mat  = faceMat.clone();
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.castShadow = true;
+  icoGroup.add(mesh);
+  faceMeshes.push(mesh);
+
+  // Внутренняя (изнанка — чернота)
+  const imat  = innerMat.clone();
+  const imesh = new THREE.Mesh(geo, imat);
+  icoGroup.add(imesh);
+  innerMeshes.push(imesh);
+
+  // Рёбра
+  const edgeGeo = new THREE.BufferGeometry();
+  const eVerts = new Float32Array([
+    sa.x,sa.y,sa.z, sb.x,sb.y,sb.z,
+    sb.x,sb.y,sb.z, scc.x,scc.y,scc.z,
+    scc.x,scc.y,scc.z, sa.x,sa.y,sa.z,
+  ]);
+  edgeGeo.setAttribute('position', new THREE.BufferAttribute(eVerts,3));
+  const eMat  = edgeMat.clone();
+  const eMesh = new THREE.LineSegments(edgeGeo, eMat);
+  icoGroup.add(eMesh);
+  edgeMeshes.push(eMesh);
+
+  // Состояние грани
+  const isSpecial = Math.random() < 0.18; // эти грани будут "проваливаться"
+  faceStates.push({
+    phase:   Math.random()*Math.PI*2,
+    speed:   0.3 + Math.random()*0.7,
+    amp:     0.04 + Math.random()*0.12,
+    normal:  normal.clone(),
+    center:  center.clone(),
+    // базовые позиции вершин
+    sa: sa.clone(), sb: sb.clone(), sc: scc.clone(),
+    isSpecial,
+    flashTimer:   isSpecial ? Math.random()*20 : Infinity,
+    flashPhase:   Math.random()*Math.PI*2,
+    flashCooldown:0,
+    displacement: 0,
+    innerVis: 0,
+  });
+});
+
+// Appearance анимация
+gsap.to({v:0},{v:1,duration:2.8,delay:.3,ease:'power2.inOut',
+  onUpdate:function(){
+    const v=this.targets()[0].v;
+    faceMeshes.forEach(m=>{ m.material.opacity = v*.88; });
+    edgeMeshes.forEach(m=>{ m.material.opacity = v*.55; });
+  }
+});
+
+/* ════════════════════════════════════════════════════════
+   FACE ANIMATION SYSTEM
+   Каждая грань живёт по своим часам
+════════════════════════════════════════════════════════ */
+let faceT = 0;
+
+function updateFaces(globalT) {
+  faceT = globalT;
+
+  faceStates.forEach((fs, fi) => {
+    // Базовое дыхание — синусоидальное смещение вдоль нормали
+    const breath = Math.sin(faceT * fs.speed + fs.phase) * fs.amp;
+
+    // Flash — внезапное провалтивание внутрь
+    let flash = 0;
+    if(fs.isSpecial) {
+      fs.flashTimer -= 0.01 * fs.speed;
+      if(fs.flashTimer <= 0 && fs.flashCooldown <= 0) {
+        // Запускаем вспышку
+        fs.flashTimer   = 8 + Math.random()*25;
+        fs.flashCooldown = 2.5;
+      }
+      if(fs.flashCooldown > 0) {
+        fs.flashCooldown -= 0.016;
+        // Резкий провал и возврат
+        const t = 1 - (fs.flashCooldown / 2.5);
+        flash = -Math.sin(t * Math.PI) * 0.35;
+      }
+    }
+
+    fs.displacement = breath + flash;
+    const d = fs.displacement;
+
+    // Обновляем позиции вершин
+    const dv = fs.normal.clone().multiplyScalar(d);
+    const mesh  = faceMeshes[fi];
+    const imesh = innerMeshes[fi];
+    const emesh = edgeMeshes[fi];
+
+    const pa = fs.sa.clone().add(dv);
+    const pb = fs.sb.clone().add(dv);
+    const pc = fs.sc.clone().add(dv);
+
+    // face
+    const fp = mesh.geometry.attributes.position;
+    fp.array[0]=pa.x;fp.array[1]=pa.y;fp.array[2]=pa.z;
+    fp.array[3]=pb.x;fp.array[4]=pb.y;fp.array[5]=pb.z;
+    fp.array[6]=pc.x;fp.array[7]=pc.y;fp.array[8]=pc.z;
+    fp.needsUpdate=true;
+
+    // inner (same geo — shared)
+    imesh.geometry.attributes.position.needsUpdate=true;
+
+    // edges
+    const ep = emesh.geometry.attributes.position;
+    ep.array[0]=pa.x;ep.array[1]=pa.y;ep.array[2]=pa.z;
+    ep.array[3]=pb.x;ep.array[4]=pb.y;ep.array[5]=pb.z;
+    ep.array[6]=pb.x;ep.array[7]=pb.y;ep.array[8]=pb.z;
+    ep.array[9]=pc.x;ep.array[10]=pc.y;ep.array[11]=pc.z;
+    ep.array[12]=pc.x;ep.array[13]=pc.y;ep.array[14]=pc.z;
+    ep.array[15]=pa.x;ep.array[16]=pa.y;ep.array[17]=pa.z;
+    ep.needsUpdate=true;
+
+    // Чернота изнутри — видна при провале
+    const flashIntensity = Math.max(0, -d/0.35);
+    fs.innerVis += (flashIntensity - fs.innerVis) * .08;
+    imesh.material.opacity = fs.innerVis * 0.92;
+
+    // Грань которая провалилась — её наружная часть темнеет
+    if(d < -0.05) {
+      mesh.material.emissive.setScalar(Math.min(.15, Math.abs(d) * .4));
+      mesh.material.emissiveIntensity = Math.min(.4, Math.abs(d) * 1.2);
+      // рёбра становятся ярче
+      emesh.material.opacity = Math.min(.9, .55 + Math.abs(d)*1.5);
+    } else {
+      mesh.material.emissive.setScalar(.02);
+      mesh.material.emissiveIntensity = .04;
+      emesh.material.opacity = Math.min(.9, faceMeshes[0].material.opacity * .6);
+    }
+  });
+}
+
+/* ════════════════════════════════════════════════════════
+   AUTONOMOUS GROUP LIFE
+   Весь объект как единый организм
+════════════════════════════════════════════════════════ */
+// Дыхание масштаба
+const breathTl = gsap.timeline({repeat:-1,yoyo:true});
+breathTl.to(icoGroup.scale,{x:1.06,y:1.06,z:1.06,duration:5.2,ease:'sine.inOut'});
+
+// Покачивание — медленное, почти незаметное
+gsap.to(icoGroup.rotation,{y:Math.PI*.38, duration:26,repeat:-1,yoyo:true,ease:'sine.inOut'});
+gsap.to(icoGroup.rotation,{x:.16,        duration:20,repeat:-1,yoyo:true,ease:'sine.inOut'});
+gsap.to(icoGroup.rotation,{z:.08,        duration:32,repeat:-1,yoyo:true,ease:'sine.inOut'});
+
+// Парение по Y
+gsap.to(icoGroup.position,{y:.38,duration:6.4,repeat:-1,yoyo:true,ease:'sine.inOut'});
+
+// Медленное движение к зрителю и от него — ось Z
+gsap.to(icoGroup.position,{z:.4,duration:14,repeat:-1,yoyo:true,ease:'sine.inOut'});
+
+/* ════════════════════════════════════════════════════════
+   DEPTH PARTICLES
+   Частицы в пространстве — подчёркивают Z-глубину
+   Дальние мельче и прозрачнее
+════════════════════════════════════════════════════════ */
+function makeDepthParticles() {
+  const count = 280;
+  const positions = new Float32Array(count*3);
+  const sizes     = new Float32Array(count);
+  const alphas    = new Float32Array(count);
+
+  for(let i=0;i<count;i++){
+    const z = -2 - Math.random()*28;           // от -2 до -30 по Z
+    const spread = 4 + Math.abs(z)*.4;
+    positions[i*3]   = (Math.random()-.5)*spread*2;
+    positions[i*3+1] = (Math.random()-.5)*spread*1.2;
+    positions[i*3+2] = z;
+    sizes[i]  = 0.5 + Math.random()*1.5;       // мельче дальше
+    alphas[i] = (.1 + Math.random()*.15) * (1 - Math.abs(z)/32);
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions,3));
+  geo.setAttribute('size',     new THREE.BufferAttribute(sizes,1));
+
+  const mat = new THREE.PointsMaterial({
+    color:0x4a4845, size:.04, transparent:true, opacity:.14,
+    sizeAttenuation:true,
+  });
+
+  const pts = new THREE.Points(geo,mat);
+  pts.userData.positions = positions;
+  pts.userData.alphas    = alphas;
+  return pts;
+}
+const particles = makeDepthParticles();
+scene.add(particles);
+
+/* ════════════════════════════════════════════════════════
+   Z-DEPTH CAMERA PARALLAX
+   При движении мыши — камера смещается по X,Y,Z
+   Создаёт реальное ощущение объёмного пространства
+════════════════════════════════════════════════════════ */
+let camTargetX=0, camTargetY=0, camTargetZ=5.2;
+const CAM_BASE_Z = 5.2;
+
+// cursor → camera target
+const qCamX = gsap.quickTo(camera.position,'x',{duration:1.8,ease:'power2.out'});
+const qCamY = gsap.quickTo(camera.position,'y',{duration:1.8,ease:'power2.out'});
+const qCamZ = gsap.quickTo(camera.position,'z',{duration:2.2,ease:'power2.out'});
+
+window.addEventListener('mousemove',()=>{
+  // Горизонтальное и вертикальное смещение
+  qCamX((MX-.5)*-.6);
+  qCamY((MY-.5)*.4);
+  // Z — при движении к краям камера слегка отдаляется
+  const edgeDist = Math.max(Math.abs(MX-.5), Math.abs(MY-.5));
+  qCamZ(CAM_BASE_Z + edgeDist*.3);
+  // Cursor light
+  gsap.to(cLight.position,{x:(MX-.5)*5, y:-(MY-.5)*3.5, duration:1.4,ease:'power2.out'});
+},{passive:true});
+
+// Камера всегда смотрит на центр объекта
+function updateCamera() {
+  camera.lookAt(icoGroup.position.x*.15, icoGroup.position.y*.1, 0);
+}
+
+/* ════════════════════════════════════════════════════════
+   SCROLL → Z TRAVEL
+   Скролл двигает камеру по Z — путешествие в бездну
+════════════════════════════════════════════════════════ */
+let scrollZ = 0;
+window.addEventListener('wheel', e => {
+  scrollZ = Math.max(-18, Math.min(0, scrollZ - e.deltaY * .008));
+  gsap.to(camera.position, { z: CAM_BASE_Z + scrollZ, duration:.8, ease:'power2.out',
+    overwrite:'auto' });
+  // туман меняется
+  const newFog = .038 + Math.abs(scrollZ)*.004;
+  gsap.to(scene.fog,{density:newFog,duration:.8});
+  // объект в целом уменьшается — уходит вдаль
+  const scl = 1 - Math.abs(scrollZ)*.018;
+  gsap.to(icoGroup.scale,{x:scl,y:scl,z:scl,duration:.8,overwrite:'auto'});
+},{passive:true});
+
+/* ════════════════════════════════════════════════════════
+   MASTER RENDER
+════════════════════════════════════════════════════════ */
+let T=0;
+function render(){
+  requestAnimationFrame(render);
+  T += .0055;
+
+  // Живые грани
+  updateFaces(T);
+
+  // Камера смотрит на объект
+  updateCamera();
+
+  // Частицы — медленное вращение слоёв по Z
+  particles.rotation.z += .0002;
+  particles.rotation.y += .0001;
+
+  // Линии пространства — чуть дышат
+  spaceLines.rotation.y = Math.sin(T*.08)*.02;
+  spaceLines.rotation.x = Math.sin(T*.06)*.01;
+
+  renderer.render(scene,camera);
+}
+render();
+
+/* ════════════════════════════════════════════════════════
+   RESIZE
+════════════════════════════════════════════════════════ */
+window.addEventListener('resize',()=>{
+  camera.aspect=W()/H();
+  camera.updateProjectionMatrix();
+  renderer.setSize(W(),H());
+},{passive:true});
+</script>
+</body>
+</html>
