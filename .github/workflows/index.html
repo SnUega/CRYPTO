@@ -3,668 +3,1154 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CRYPT // OBJECT Ω</title>
-<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@700&display=swap" rel="stylesheet">
+<title>CRYPT // WHITE ABYSS ARCHIVE</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@700;300&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{width:100%;height:100%;overflow:hidden}
-body{background:#eeece7;cursor:none}
+html,body{width:100%;height:100%;background:#eeece7}
+body{cursor:none;overflow-x:hidden;overflow-y:auto}
 
-#c{position:fixed;inset:0;width:100%;height:100%}
+/* scroll track — 2000vh с пинами */
+#scroll-track{height:2000vh}
+#stage{position:fixed;inset:0;overflow:hidden}
+
+/* canvas stack */
+#cv       {position:absolute;inset:0;width:100%;height:100%;z-index:1}
+#cv-void  {position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none;opacity:0}
+
+/* flash при влёте — выше всего, без transition */
+#flash{position:absolute;inset:0;z-index:60;background:#fff;opacity:0;pointer-events:none}
+
+/* ══ HUD layers ══ */
+.hud{position:absolute;inset:0;z-index:50;pointer-events:none;opacity:0}
+/* transition только на конкретных HUD — не на flash */
+#h1,#h3,#h4,#h5,#h6{transition:opacity .5s ease}
 
 /* noise */
-#n{
-  position:fixed;inset:0;z-index:2;pointer-events:none;
-  mix-blend-mode:multiply;opacity:.032;
-  background:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.88' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E") 0 0/256px;
-}
+#noise{position:absolute;inset:0;z-index:40;pointer-events:none;mix-blend-mode:multiply;opacity:.032;background:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.88' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E") 0 0/256px}
 
-/* HUD */
-#hud{position:fixed;inset:0;z-index:10;pointer-events:none}
-.hid{
-  position:absolute;top:28px;left:48px;
-  font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:.2em;
-  color:#9a9692;opacity:0;animation:fi 1s .5s forwards;
-}
+.mono{font-family:'Share Tech Mono',monospace}
+
+/* Act I */
+#h1{opacity:1}
+.h1-top{position:absolute;top:0;left:0;right:0;padding:24px 48px;display:flex;justify-content:space-between;align-items:center}
+.hid{font-size:9px;letter-spacing:.2em;color:#9a9692}
 .hid b{color:#8b3a3a;font-weight:400}
-.htag{
-  position:absolute;top:28px;right:48px;
-  font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:.14em;
-  color:#9a9692;border:1px solid rgba(154,150,146,.22);padding:3px 10px;
-  opacity:0;animation:fi 1s .7s forwards;
-  display:flex;align-items:center;gap:8px;
-}
+.htag{font-size:8px;letter-spacing:.14em;color:#9a9692;border:1px solid rgba(154,150,146,.22);padding:3px 10px;display:inline-flex;align-items:center;gap:8px}
 .pd{width:5px;height:5px;border-radius:50%;background:#8b3a3a;animation:pd 2.4s ease-in-out infinite}
 @keyframes pd{0%,100%{opacity:1}50%{opacity:.1}}
+.h1-bot{position:absolute;bottom:52px;left:0;right:0;text-align:center}
+.h1-title{font-family:'Barlow Condensed',sans-serif;font-size:clamp(72px,9.5vw,116px);font-weight:700;letter-spacing:-.02em;line-height:.82;text-transform:uppercase;color:#0e0d0b}
+.h1-sub{font-size:8px;letter-spacing:.28em;color:#9a9692;margin-top:14px}
+.h1-sub b{color:#8b3a3a;font-weight:400}
+.shint{display:inline-flex;align-items:center;gap:14px;margin-top:28px;font-size:7px;letter-spacing:.24em;color:#c4c0b8;animation:sh 3s ease-in-out infinite}
+@keyframes sh{0%,100%{opacity:.35;transform:translateY(0)}50%{opacity:.8;transform:translateY(4px)}}
+.sh-l{width:1px;height:18px;background:currentColor}
+.h1-corners span{position:absolute;font-size:7px;letter-spacing:.14em;color:#c4c0b8}
+.c-tl{top:70px;left:48px}.c-tr{top:70px;right:48px;text-align:right}
+.c-bl{bottom:28px;left:48px}.c-br{bottom:28px;right:48px;text-align:right}
 
-/* Title — внизу, под объектом */
-.title-wrap{
-  position:absolute;bottom:60px;left:0;right:0;
-  display:flex;flex-direction:column;align-items:center;gap:0;
-  opacity:0;animation:fi 1.4s 1.2s forwards;
-}
-.title{
-  font-family:'Barlow Condensed',sans-serif;
-  font-size:clamp(80px,10vw,128px);font-weight:700;
-  letter-spacing:-.02em;line-height:.82;
-  text-transform:uppercase;color:#0e0d0b;
-  text-shadow:0 0 80px rgba(238,236,231,.95);
-}
-.sub{
-  font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:.28em;
-  color:#9a9692;margin-top:14px;
-}
-.sub b{color:#8b3a3a;font-weight:400}
+/* Act III — внутри икосаэдра */
+#h3{padding:0}
+.h3-corner{position:absolute;font-size:7px;letter-spacing:.18em}
+.h3-tl{top:28px;left:48px;color:rgba(180,176,168,.28)}
+.h3-tr{top:28px;right:48px;color:rgba(180,176,168,.2);text-align:right}
+.h3-cards{position:absolute;bottom:56px;left:56px;right:56px;display:grid;grid-template-columns:1fr 1fr;gap:2px}
+.h3c{border:1px solid rgba(200,196,188,.08);background:rgba(200,196,188,.03);padding:20px 24px;clip-path:polygon(0 0,calc(100% - 7px) 0,100% 7px,100% 100%,0 100%)}
+.h3c-i{font-size:7px;letter-spacing:.2em;color:rgba(170,166,160,.25);margin-bottom:9px}
+.h3c-t{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:rgba(200,196,198,.68);margin-bottom:7px}
+.h3c-b{font-size:9px;line-height:1.72;color:rgba(170,166,160,.26)}
+.h3c-m{margin-top:12px;padding-top:9px;border-top:1px solid rgba(200,196,188,.05);font-size:7px;letter-spacing:.12em;color:rgba(150,146,140,.2);display:flex;gap:12px;flex-wrap:wrap}
+.h3c-m b{color:#8b3a3a;font-weight:400}
 
-/* угловые метки */
-.corner{
-  position:absolute;font-family:'Share Tech Mono',monospace;
-  font-size:7px;letter-spacing:.14em;color:#c4c0b8;
-  opacity:0;animation:fi 1s .9s forwards;
+/* Act IV — преддверье */
+#h4{}
+.h4-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:80px}
+.h4-eye{font-size:7px;letter-spacing:.32em;color:#9a9692;margin-bottom:22px}
+.h4-title{font-family:'Barlow Condensed',sans-serif;font-size:clamp(44px,6.5vw,82px);font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#1e1c1a;line-height:.86}
+.h4-rule{width:40px;height:1px;background:rgba(154,150,146,.3);margin:24px auto}
+.h4-meta{font-size:8px;letter-spacing:.18em;color:#9a9692}
+
+/* Act V — из тьмы */
+#h5{padding:64px}
+.h5-tag{display:inline-block;font-size:7px;letter-spacing:.24em;color:rgba(180,176,168,.32);border:1px solid rgba(180,176,168,.1);padding:3px 10px;margin-bottom:28px}
+.h5-title{font-family:'Barlow Condensed',sans-serif;font-size:clamp(36px,5.5vw,68px);font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:rgba(210,206,198,.82);line-height:.86;margin-bottom:18px}
+.h5-sub{font-size:9px;letter-spacing:.14em;color:rgba(150,146,140,.4);line-height:1.9}
+.h5-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin-top:28px}
+.h5-cell{border:1px solid rgba(200,196,188,.07);padding:16px 18px;background:rgba(200,196,188,.02)}
+.h5-cell-l{font-size:7px;letter-spacing:.18em;color:rgba(150,146,140,.28);margin-bottom:7px}
+.h5-cell-v{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;color:rgba(200,196,188,.58);letter-spacing:.02em}
+
+/* Act VI — кубы + титры */
+#h6{}
+.h6-top{position:absolute;top:0;left:0;right:0;height:60px;border-bottom:1px solid rgba(40,36,30,.1);display:flex;align-items:center;padding:0 48px;gap:28px}
+.h6-topline{flex:1;height:1px;background:rgba(40,36,30,.07)}
+.h6-toplabel{font-size:7px;letter-spacing:.2em;color:rgba(60,56,50,.3);white-space:nowrap}
+.h6-panels{position:absolute;top:80px;left:64px;right:64px;display:flex;flex-direction:column;gap:3px}
+.h6-panel{
+  border:1px solid rgba(40,36,30,.1);padding:28px 32px;
+  background:rgba(238,236,231,.82);backdrop-filter:blur(10px);
+  opacity:0;transform:translateY(32px);
+  transition:opacity 1.4s cubic-bezier(.16,1,.3,1), transform 1.4s cubic-bezier(.16,1,.3,1);
 }
-.ctlx{top:68px;left:48px} .ctrx{top:68px;right:48px;text-align:right}
-.cblx{bottom:28px;left:48px} .cbrx{bottom:28px;right:48px;text-align:right}
+.h6-panel.vis{opacity:1;transform:none}
+.h6-panel-t{font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#1e1c1a;margin-bottom:8px}
+.h6-panel-b{font-size:10px;letter-spacing:.07em;line-height:1.88;color:#6a6662}
+
+/* debug */
+#dbg{display:none;position:fixed;top:12px;right:12px;z-index:9990;width:240px;background:rgba(8,7,6,.88);border:1px solid rgba(139,58,58,.4);font-family:'Share Tech Mono',monospace;font-size:9px;line-height:1.9;color:#9a9;padding:10px 14px;backdrop-filter:blur(4px)}
+#dbg.on{display:block}
+.ds{color:#8b3a3a;letter-spacing:.12em;margin-top:5px;margin-bottom:1px}
+.dw{color:#e8a030}.de{color:#e05050}.dok{color:#50c878}
+
+#err{display:none;position:fixed;inset:0;z-index:99999;background:rgba(8,4,4,.96);font-family:'Share Tech Mono',monospace;padding:48px;overflow:auto;border:2px solid #8b3a3a}
+#err.on{display:block}
+#err h2{color:#e05050;font-size:13px;letter-spacing:.18em;margin-bottom:18px}
+#err pre{color:#d8a0a0;font-size:10px;line-height:1.8;white-space:pre-wrap}
+.ecl{position:absolute;top:14px;right:18px;color:#8b3a3a;cursor:pointer;font-size:10px;letter-spacing:.1em;pointer-events:all}
+.ecl:hover{color:#e05050}
+
+/* progress */
+#prog{position:fixed;top:0;left:0;height:2px;z-index:998;background:rgba(139,58,58,.45);pointer-events:none}
 
 /* cursor */
-#cur,#cur-r{
-  position:fixed;border-radius:50%;pointer-events:none;z-index:9999;
-  transform:translate(-50%,-50%);will-change:left,top;
-}
-#cur{width:4px;height:4px;background:#2a2927;transition:width .1s,height .1s}
-#cur-r{
-  width:20px;height:20px;z-index:9998;
-  border:1px solid rgba(191,187,178,.6);
-  transition:border-color .2s,width .12s,height .12s;
-}
-
-/* dev hint */
-.dev{
-  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
-  font-family:'Share Tech Mono',monospace;font-size:7px;letter-spacing:.16em;
-  color:#c4c0b8;z-index:20;pointer-events:none;
-  opacity:0;animation:fi .8s 3s forwards;
-}
-
-@keyframes fi{to{opacity:1}}
+#cur,#cur-r{position:fixed;border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);will-change:left,top;transition:background .3s,border-color .3s}
+#cur{width:4px;height:4px;background:#2a2927}
+#cur-r{width:20px;height:20px;border:1px solid rgba(191,187,178,.5)}
 </style>
 </head>
 <body>
-<canvas id="c"></canvas>
-<div id="n" aria-hidden="true"></div>
 
-<div id="hud">
-  <div class="hid">ARCHIVE // REG-ID <b>WA-0000-Ω</b></div>
-  <div class="htag"><div class="pd"></div>PASSIVE OBSERVATION</div>
-  <div class="corner ctlx">0.000 / 0.000</div>
-  <div class="corner ctrx">DEPTH: UNKNOWN</div>
-  <div class="corner cblx">AUTH: NONE</div>
-  <div class="corner cbrx">CLASS: TOTAL</div>
-  <div class="title-wrap">
-    <div class="title">OBJECT Ω</div>
-    <div class="sub">CLASSIFICATION: TOTAL  //  STATUS: <b>UNRESOLVED</b></div>
+<div id="scroll-track">
+  <!-- Маркеры для пинов — пустые div в нужных позициях трека -->
+  <div id="pin-act3"  style="position:absolute;top:49%;height:1px;width:1px"></div>
+  <div id="pin-act6"  style="position:absolute;top:91%;height:1px;width:1px"></div>
+</div>
+
+<div id="stage">
+  <canvas id="cv"></canvas>
+  <canvas id="cv-void"></canvas>
+  <div id="flash" aria-hidden="true"></div>
+  <div id="noise"  aria-hidden="true"></div>
+
+  <!-- ACT I — HERO -->
+  <div id="h1" class="hud">
+    <div class="h1-top mono">
+      <span class="hid">ARCHIVE // REG-ID <b>WA-0000-Ω</b></span>
+      <span class="htag"><span class="pd"></span>PASSIVE OBSERVATION</span>
+    </div>
+    <div class="h1-corners mono">
+      <span class="c-tl">0.000 / 0.000</span>
+      <span class="c-tr">DEPTH: UNKNOWN</span>
+      <span class="c-bl">AUTH: NONE</span>
+      <span class="c-br">CLASS: TOTAL</span>
+    </div>
+    <div class="h1-bot">
+      <div class="h1-title">OBJECT Ω</div>
+      <div class="h1-sub mono">CLASSIFICATION: TOTAL  //  STATUS: <b>UNRESOLVED</b></div>
+      <div class="shint mono"><div class="sh-l"></div>SCROLL TO ENTER<div class="sh-l"></div></div>
+    </div>
+  </div>
+
+  <!-- ACT III — INSIDE -->
+  <div id="h3" class="hud mono">
+    <div class="h3-corner h3-tl">WA-INTERIOR // NODE-01</div>
+    <div class="h3-corner h3-tr">DEPTH: LAYER 1 OF ∞</div>
+    <div class="h3-cards">
+      <div class="h3c">
+        <div class="h3c-i">ENTRY 01 // ——.——.——</div>
+        <div class="h3c-t">First Presence</div>
+        <div class="h3c-b">No detection event. No approach vector. Object was present at coordinates 0.000 at time of first measurement.</div>
+        <div class="h3c-m"><span>ORIGIN: —</span><span>PRIOR STATE: <b>NULL</b></span></div>
+      </div>
+      <div class="h3c">
+        <div class="h3c-i">ENTRY 02 // ——.——.——</div>
+        <div class="h3c-t">Material Absence</div>
+        <div class="h3c-b">Spectrographic analysis returns no composition. Object occupies volume and has mass. No material accounts for these properties.</div>
+        <div class="h3c-m"><span>MASS: <b>PRESENT</b></span><span>RESOLUTION: <b>FAILED</b></span></div>
+      </div>
+      <div class="h3c">
+        <div class="h3c-i">ENTRY 03 // ——.——.——</div>
+        <div class="h3c-t">Subsonic Field</div>
+        <div class="h3c-b">17.2 Hz continuous. Correlates with spatial disorientation and involuntary memory access. No source identified.</div>
+        <div class="h3c-m"><span>FREQ: 17.2 Hz</span><span>SOURCE: —</span></div>
+      </div>
+      <div class="h3c">
+        <div class="h3c-i">ENTRY 04 // ——.——.——</div>
+        <div class="h3c-t">Temporal Drift</div>
+        <div class="h3c-b">Object does not age. Degradation rate: zero. Internal structure reorients in response to observation.</div>
+        <div class="h3c-m"><span>AGE: —</span><span>DEGRADATION: 0.00%</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ACT IV — PRELUDE -->
+  <div id="h4" class="hud mono">
+    <div class="h4-center">
+      <div class="h4-eye">WA-CORE // STRUCTURAL LAYER</div>
+      <div class="h4-title">OBJECT Ω<br>PERSISTS</div>
+      <div class="h4-rule"></div>
+      <div class="h4-meta">AUTHOR: —  //  ORIGIN: —  //  DELTA T: ∅</div>
+    </div>
+  </div>
+
+  <!-- ACT V — FROM THE VOID -->
+  <div id="h5" class="hud mono">
+    <div class="h5-tag">WA-DEEP // ACCESS GRANTED</div>
+    <div class="h5-title">WHITE<br>ABYSS<br>ARCHIVE</div>
+    <div class="h5-sub">TOTAL ENTRIES: ∞  //  RESOLVED: 0  //  AUTHOR OF RECORD: —</div>
+    <div class="h5-grid">
+      <div class="h5-cell"><div class="h5-cell-l">OBSERVATION PERIOD</div><div class="h5-cell-v">∞</div></div>
+      <div class="h5-cell"><div class="h5-cell-l">CONTAINMENT</div><div class="h5-cell-v">N/A</div></div>
+      <div class="h5-cell"><div class="h5-cell-l">THREAT LEVEL</div><div class="h5-cell-v">—</div></div>
+    </div>
+  </div>
+
+  <!-- ACT VI — CUBES + TITLES -->
+  <div id="h6" class="hud mono">
+    <div class="h6-top">
+      <div class="h6-topline"></div>
+      <span class="h6-toplabel">CRYPT // WHITE ABYSS ARCHIVE // EST. ——.——.——</span>
+      <div class="h6-topline"></div>
+    </div>
+    <div class="h6-panels">
+      <div class="h6-panel" id="p1">
+        <div class="h6-panel-t">The Archive</div>
+        <div class="h6-panel-b">A repository of observations without resolution. Every entry documents what was witnessed. Nothing here explains what it means.</div>
+      </div>
+      <div class="h6-panel" id="p2">
+        <div class="h6-panel-t">The Object</div>
+        <div class="h6-panel-b">Designation Ω was assigned at first contact. The designation carries no meaning. It was the last letter available.</div>
+      </div>
+      <div class="h6-panel" id="p3">
+        <div class="h6-panel-t">The Record</div>
+        <div class="h6-panel-b">You have reached the interior of the archive. What you see here is what remains after everything explicable has been removed.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DEBUG -->
+  <div id="dbg">
+    <div class="ds">// CRYPT //</div>
+    <div id="d-deps"></div>
+    <div class="ds">SCENE</div>
+    <div>ACT &nbsp;: <span id="d-act">I</span></div>
+    <div>PROG : <span id="d-p">0.000</span></div>
+    <div>CAM Z: <span id="d-z">5.20</span></div>
+    <div>FPS &nbsp;: <span id="d-fps">--</span></div>
+    <div class="ds">STATE</div>
+    <div>ripple &nbsp;: <span id="d-rip">0.00</span></div>
+    <div>portal &nbsp;: <span id="d-por">0.00</span></div>
+    <div>explode: <span id="d-exp">0.00</span></div>
+    <div>inside &nbsp;: <span id="d-ins">0.00</span></div>
+    <div>room &nbsp;&nbsp;: <span id="d-rom">0.00</span></div>
+    <div>void &nbsp;&nbsp;: <span id="d-voi">0.00</span></div>
+    <div>drain &nbsp;: <span id="d-drn">0.00</span></div>
+    <div>cubes &nbsp;: <span id="d-cub">0.00</span></div>
+    <div class="ds">LOG</div>
+    <div id="d-log" style="color:#666;max-height:72px;overflow:hidden"></div>
   </div>
 </div>
 
-<div class="dev">MOVE MOUSE — SCROLL — OBSERVE</div>
+<div id="err">
+  <span class="ecl" onclick="document.getElementById('err').classList.remove('on')">[ CLOSE × ]</span>
+  <h2>// ERROR //</h2>
+  <pre id="err-txt"></pre>
+</div>
+
+<div id="prog"></div>
 <div id="cur"  aria-hidden="true"></div>
 <div id="cur-r" aria-hidden="true"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"
+  onerror="window.__depErr=window.__depErr||[];window.__depErr.push('THREE failed')"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"
+  onerror="window.__depErr=window.__depErr||[];window.__depErr.push('GSAP failed')"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"
+  onerror="window.__depErr=window.__depErr||[];window.__depErr.push('ST failed')"></script>
+<script src="https://unpkg.com/lenis@1.1.14/dist/lenis.min.js"
+  onerror="window.__depErr=window.__depErr||[];window.__depErr.push('Lenis failed')"></script>
+
 <script>
 'use strict';
 
 /* ════════════════════════════════════════════════════════
-   OBJECT Ω — The Demiurge Engine
-
-   Философия рендера:
-   - Белая бездна = бесконечное пространство по Z
-   - Икосаэдр = не объект а граница между пространствами
-   - Живые полигоны = каждая грань имеет автономную жизнь
-   - Чернота внутри = отсутствие, а не цвет
-   - Z-axis first = глубина важнее плоскости
+   DEBUG
 ════════════════════════════════════════════════════════ */
+const DBG = (() => {
+  const panel = document.getElementById('dbg');
+  const errEl = document.getElementById('err');
+  const errTxt= document.getElementById('err-txt');
+  const logEl = document.getElementById('d-log');
+  let lines=[], fc=0, lt=performance.now(), fps=0;
 
-const W = () => window.innerWidth;
-const H = () => window.innerHeight;
+  if (location.search.includes('debug')) { document.body.classList.add('debug'); panel.classList.add('on'); }
+  document.addEventListener('keydown', e => {
+    if (e.ctrlKey && e.key==='d') { e.preventDefault(); panel.classList.toggle('on'); }
+  });
 
-/* ── Pointer ── */
-let MX=.5,MY=.5,PCX=W()/2,PCY=H()/2;
-let RX=PCX,RY=PCY;
+  window.onerror = (msg,src,ln,col,err) => {
+    errTxt.textContent = `${msg}\n${src} ${ln}:${col}\n${err?.stack||''}`;
+    errEl.classList.add('on'); log('ERR: '+msg.slice(0,50),'e'); return false;
+  };
+  window.addEventListener('unhandledrejection', e => {
+    errTxt.textContent = String(e.reason?.stack||e.reason);
+    errEl.classList.add('on'); log('PROMISE: '+String(e.reason).slice(0,50),'e');
+  });
 
-document.addEventListener('mousemove',e=>{
-  PCX=e.clientX;PCY=e.clientY;
-  MX=e.clientX/W();MY=e.clientY/H();
-},{passive:true});
-
-const $cur  = document.getElementById('cur');
-const $ring = document.getElementById('cur-r');
-;(function cl(){
-  requestAnimationFrame(cl);
-  RX+=(PCX-RX)*.11;RY+=(PCY-RY)*.11;
-  $cur.style.left  = PCX+'px'; $cur.style.top  = PCY+'px';
-  $ring.style.left = (RX|0)+'px'; $ring.style.top = (RY|0)+'px';
+  function log(msg, type='i') {
+    const c={i:'#9a9',w:'#e8a030',e:'#e05050',ok:'#50c878'};
+    lines.unshift({msg,type}); if(lines.length>5) lines.pop();
+    logEl.innerHTML = lines.map(l=>`<div style="color:${c[l.type]}">${l.msg}</div>`).join('');
+  }
+  function checkDeps() {
+    const d = document.getElementById('d-deps'); if(!d) return;
+    const items=[
+      {n:'THREE',ok:typeof THREE!=='undefined'},
+      {n:'GSAP', ok:typeof gsap !=='undefined'},
+      {n:'ST',   ok:typeof ScrollTrigger!=='undefined'},
+      {n:'Lenis',ok:typeof Lenis!=='undefined'},
+    ];
+    d.innerHTML = items.map(x=>`<div class="${x.ok?'dok':'de'}">${x.n}: ${x.ok?'✓':'✗'}</div>`).join('');
+    (window.__depErr||[]).forEach(e=>log(e,'e'));
+  }
+  function tick() {
+    fc++;
+    const now=performance.now();
+    if(now-lt>500){
+      fps=Math.round(fc/((now-lt)/1000));fc=0;lt=now;
+      const el=document.getElementById('d-fps');
+      if(el){el.textContent=fps;el.className=fps<30?'de':fps<50?'dw':'dok';}
+    }
+  }
+  function set(id,v) {
+    const el=document.getElementById(id);
+    if(el) el.textContent=typeof v==='number'?v.toFixed(2):v;
+  }
+  function update(S) {
+    if(!panel.classList.contains('on')) return;
+    tick();
+    set('d-act',S.act); set('d-p',S.prog); set('d-z',S.camZ);
+    set('d-rip',S.ripple); set('d-por',S.portalOpen);
+    set('d-exp',S.explode); set('d-ins',S.inside);
+    set('d-rom',S.roomVis); set('d-voi',S.voidAbsorb);
+    set('d-drn',S.voidDrain); set('d-cub',S.cubesVis);
+  }
+  return {log,checkDeps,tick,update};
 })();
 
 /* ════════════════════════════════════════════════════════
-   RENDERER
+   WAIT FOR DEPS
 ════════════════════════════════════════════════════════ */
-const canvas   = document.getElementById('c');
-const renderer = new THREE.WebGLRenderer({
-  canvas, antialias:true,
-  alpha:false,
-});
-renderer.setPixelRatio(Math.min(devicePixelRatio,2));
-renderer.setSize(W(),H());
-renderer.setClearColor(0xeeece7, 1);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type    = THREE.PCFSoftShadowMap;
+const W=()=>window.innerWidth, H=()=>window.innerHeight;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const norm=(v,a,b)=>clamp((v-a)/(b-a),0,1);
+const lerp=(a,b,t)=>a+(b-a)*t;
 
-const scene  = new THREE.Scene();
-// Туман — белизна уходит в бесконечность по Z
-// Не просто fog а ощущение что пространство не заканчивается
-scene.fog = new THREE.FogExp2(0xeeece7, 0.038);
-
-const camera = new THREE.PerspectiveCamera(52, W()/H(), 0.01, 200);
-camera.position.set(0, 0, 5.2);
-
-/* ════════════════════════════════════════════════════════
-   LIGHTING — белая бездна освещена равномерно
-   но объект имеет направленный свет чтобы грани читались
-════════════════════════════════════════════════════════ */
-// Ambient — общий белый свет бездны
-const amb = new THREE.AmbientLight(0xf0ede6, 0.42);
-scene.add(amb);
-
-// Hemisphere — небо/земля
-const hemi = new THREE.HemisphereLight(0xf8f6f2, 0xe8e4de, 0.35);
-scene.add(hemi);
-
-// Key — направленный, создаёт грани
-const key = new THREE.DirectionalLight(0xffffff, 0.9);
-key.position.set(3, 5, 4);
-key.castShadow = true;
-key.shadow.mapSize.setScalar(2048);
-key.shadow.camera.near = 0.1;
-key.shadow.camera.far  = 30;
-key.shadow.camera.left = key.shadow.camera.bottom = -4;
-key.shadow.camera.right= key.shadow.camera.top = 4;
-key.shadow.radius = 16;
-scene.add(key);
-
-// Fill
-const fill = new THREE.DirectionalLight(0xeeeae0, 0.22);
-fill.position.set(-3,-2,2);
-scene.add(fill);
-
-// Rim — подчёркивает контур
-const rim = new THREE.DirectionalLight(0xe0e8f4, 0.28);
-rim.position.set(0,0,-8);
-scene.add(rim);
-
-// Cursor point light
-const cLight = new THREE.PointLight(0xfff8f0, 0.6, 16);
-cLight.position.set(0,0,4);
-scene.add(cLight);
-
-/* ════════════════════════════════════════════════════════
-   SHADOW PLANE — тень под объектом
-   создаёт ощущение постамента в белой бездне
-════════════════════════════════════════════════════════ */
-const shadowPlane = new THREE.Mesh(
-  new THREE.PlaneGeometry(20,20),
-  new THREE.ShadowMaterial({opacity:.08, transparent:true})
-);
-shadowPlane.rotation.x = -Math.PI/2;
-shadowPlane.position.y = -2.2;
-shadowPlane.receiveShadow = true;
-scene.add(shadowPlane);
-
-// Тонкие кольца постамента
-for(let i=0;i<5;i++){
-  const t=i/4;
-  const r=0.5+t*2;
-  const pts=[];
-  for(let j=0;j<=80;j++){
-    const a=j/80*Math.PI*2;
-    pts.push(new THREE.Vector3(Math.cos(a)*r,0,Math.sin(a)*r*.18));
-  }
-  const ring=new THREE.Line(
-    new THREE.BufferGeometry().setFromPoints(pts),
-    new THREE.LineBasicMaterial({color:0x4a4845,transparent:true,opacity:(1-t)*.045})
-  );
-  ring.position.y=-2.18;
-  scene.add(ring);
+function waitDeps(cb) {
+  let n=0;
+  const t=()=>{n++;
+    if(typeof THREE!=='undefined'&&typeof gsap!=='undefined'&&typeof ScrollTrigger!=='undefined'&&typeof Lenis!=='undefined'){
+      DBG.checkDeps(); DBG.log('deps ok t='+n,'ok'); cb();
+    } else if(n>120){ DBG.checkDeps(); DBG.log('DEPS TIMEOUT','e'); }
+    else setTimeout(t,50);
+  };t();
 }
 
 /* ════════════════════════════════════════════════════════
-   ДЫШАЩИЕ ЛИНИИ ПРОСТРАНСТВА
-   SVG-like но в 3D — плоскости LineSegments по Z
+   POINTER
 ════════════════════════════════════════════════════════ */
-function makeSpaceLines(){
-  const group = new THREE.Group();
+const Ptr={x:.5,y:.5,cx:0,cy:0,rx:0,ry:0};
+Ptr.cx=W()/2;Ptr.cy=H()/2;Ptr.rx=Ptr.cx;Ptr.ry=Ptr.cy;
+document.addEventListener('mousemove',e=>{Ptr.cx=e.clientX;Ptr.cy=e.clientY;Ptr.x=e.clientX/W();Ptr.y=e.clientY/H();},{passive:true});
+const $cur=document.getElementById('cur');
+const $ring=document.getElementById('cur-r');
+;(function cl(){requestAnimationFrame(cl);Ptr.rx+=(Ptr.cx-Ptr.rx)*.11;Ptr.ry+=(Ptr.cy-Ptr.ry)*.11;
+  $cur.style.left=Ptr.cx+'px';$cur.style.top=Ptr.cy+'px';
+  $ring.style.left=(Ptr.rx|0)+'px';$ring.style.top=(Ptr.ry|0)+'px';
+})();
 
-  // Горизонтальные плоскости на разных Z
-  const zLevels = [-2, -4, -7, -12, -20];
-  zLevels.forEach((z,zi) => {
-    const size = 18 + Math.abs(z)*1.4;
-    const opacity = .022 * (1 - zi*.15);
-    const count = 6;
-    for(let i=0;i<count;i++){
-      const y = -3 + (i/(count-1))*8;
-      const pts=[
-        new THREE.Vector3(-size, y, z),
-        new THREE.Vector3( size, y, z),
-      ];
-      const line = new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints(pts),
-        new THREE.LineBasicMaterial({color:0x4a4845,transparent:true,opacity})
-      );
-      group.add(line);
-    }
-    // вертикальные
-    const vcnt = 8;
-    for(let i=0;i<vcnt;i++){
-      const x = -size + (i/(vcnt-1))*size*2;
-      const pts=[
-        new THREE.Vector3(x,-4,z),
-        new THREE.Vector3(x, 4,z),
-      ];
-      const line = new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints(pts),
-        new THREE.LineBasicMaterial({color:0x4a4845,transparent:true,opacity:opacity*.7})
-      );
-      group.add(line);
-    }
+/* ════════════════════════════════════════════════════════
+   MAIN
+════════════════════════════════════════════════════════ */
+waitDeps(()=>{
+  gsap.registerPlugin(ScrollTrigger);
+
+  /* ── LENIS smooth scroll ──
+     syncTouch: true — на тач-устройствах скролл нативный, иначе прогресс не обновляется и объект "не едет"
+     На десктопе smoothWheel даёт плавность колёсиком
+  ── */
+  const lenis = new Lenis({
+    duration: 1.2,
+    easing: t => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+    smoothWheel: true,
+    syncTouch: true,
+    touchMultiplier: 2,
   });
+  lenis.on('scroll', ScrollTrigger.update);
+  window.addEventListener('scroll', () => ScrollTrigger.update(), { passive: true });
+  gsap.ticker.add(time => lenis.raf(time * 1000));
+  gsap.ticker.lagSmoothing(0);
 
-  return group;
-}
-const spaceLines = makeSpaceLines();
-scene.add(spaceLines);
-
-/* ════════════════════════════════════════════════════════
-   LIVING ICOSAHEDRON
-   Каждая грань — отдельный Mesh с независимой жизнью
-
-   Жизнь грани:
-   - displacement вдоль нормали (вдавливание / выпирание)
-   - независимая фаза и скорость
-   - при сильном вдавливании — "провал" открывает черноту
-   - редкие "всполохи" — грань резко уходит внутрь и возвращается
-════════════════════════════════════════════════════════ */
-
-// Базовая геометрия для вычисления граней
-const BASE_GEO = new THREE.IcosahedronGeometry(1, 1); // detail 1 = 80 граней
-
-// Разбираем на отдельные треугольники
-function decomposeToFaces(geometry) {
-  const pos = geometry.attributes.position;
-  const faces = [];
-  const faceCount = pos.count / 3;
-
-  for(let i=0;i<faceCount;i++){
-    const i3 = i*3;
-    const a = new THREE.Vector3().fromBufferAttribute(pos, i3);
-    const b = new THREE.Vector3().fromBufferAttribute(pos, i3+1);
-    const c = new THREE.Vector3().fromBufferAttribute(pos, i3+2);
-
-    // нормаль грани
-    const edge1 = new THREE.Vector3().subVectors(b,a);
-    const edge2 = new THREE.Vector3().subVectors(c,a);
-    const normal = new THREE.Vector3().crossVectors(edge1,edge2).normalize();
-
-    // центр грани
-    const center = new THREE.Vector3()
-      .add(a).add(b).add(c)
-      .divideScalar(3);
-
-    faces.push({ a,b,c,normal,center, i });
-  }
-  return faces;
-}
-
-const faceData = decomposeToFaces(BASE_GEO);
-
-// Материалы
-// Основной — почти белый, минимальный shininess
-const faceMat = new THREE.MeshPhongMaterial({
-  color:     0xe8e4dc,
-  emissive:  0x060504,
-  emissiveIntensity: 0.04,
-  shininess: 12,
-  specular:  new THREE.Color(0xd0ccc4),
-  transparent: true,
-  opacity: 0,
-  side: THREE.FrontSide,
-});
-
-// Черная изнанка — то что внутри
-// Не просто чёрный — unlit, не реагирует на свет вообще
-const innerMat = new THREE.MeshBasicMaterial({
-  color: 0x020202,
-  transparent: true,
-  opacity: 0,
-  side: THREE.BackSide,
-});
-
-// Wireframe рёбер — главный визуальный элемент
-// Тонкие линии контура
-const edgeMat = new THREE.LineBasicMaterial({
-  color: 0x3a3835,
-  transparent: true,
-  opacity: 0,
-});
-
-// Группа всего объекта
-const icoGroup = new THREE.Group();
-scene.add(icoGroup);
-
-// Создаём каждую грань отдельно
-const faceMeshes   = []; // внешняя сторона
-const innerMeshes  = []; // внутренняя (чернота)
-const edgeMeshes   = []; // рёбра
-const faceStates   = []; // состояние каждой грани
-
-const FACE_COUNT = faceData.length;
-
-faceData.forEach((fd,fi) => {
-  const { a,b,c,normal,center } = fd;
-
-  // Геометрия треугольника (чуть меньше чтобы был зазор)
-  const shrink = 0.96;
-  const sc = center.clone();
-  const sa = new THREE.Vector3().lerpVectors(sc,a,shrink);
-  const sb = new THREE.Vector3().lerpVectors(sc,b,shrink);
-  const scc = new THREE.Vector3().lerpVectors(sc,c,shrink);
-
-  const geo = new THREE.BufferGeometry();
-  const verts = new Float32Array([
-    sa.x,sa.y,sa.z,
-    sb.x,sb.y,sb.z,
-    scc.x,scc.y,scc.z,
-  ]);
-  const norms = new Float32Array([
-    normal.x,normal.y,normal.z,
-    normal.x,normal.y,normal.z,
-    normal.x,normal.y,normal.z,
-  ]);
-  geo.setAttribute('position', new THREE.BufferAttribute(verts,3));
-  geo.setAttribute('normal',   new THREE.BufferAttribute(norms,3));
-
-  // Внешняя грань
-  const mat  = faceMat.clone();
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.castShadow = true;
-  icoGroup.add(mesh);
-  faceMeshes.push(mesh);
-
-  // Внутренняя (изнанка — чернота)
-  const imat  = innerMat.clone();
-  const imesh = new THREE.Mesh(geo, imat);
-  icoGroup.add(imesh);
-  innerMeshes.push(imesh);
-
-  // Рёбра
-  const edgeGeo = new THREE.BufferGeometry();
-  const eVerts = new Float32Array([
-    sa.x,sa.y,sa.z, sb.x,sb.y,sb.z,
-    sb.x,sb.y,sb.z, scc.x,scc.y,scc.z,
-    scc.x,scc.y,scc.z, sa.x,sa.y,sa.z,
-  ]);
-  edgeGeo.setAttribute('position', new THREE.BufferAttribute(eVerts,3));
-  const eMat  = edgeMat.clone();
-  const eMesh = new THREE.LineSegments(edgeGeo, eMat);
-  icoGroup.add(eMesh);
-  edgeMeshes.push(eMesh);
-
-  // Состояние грани
-  const isSpecial = Math.random() < 0.18; // эти грани будут "проваливаться"
-  faceStates.push({
-    phase:   Math.random()*Math.PI*2,
-    speed:   0.3 + Math.random()*0.7,
-    amp:     0.04 + Math.random()*0.12,
-    normal:  normal.clone(),
-    center:  center.clone(),
-    // базовые позиции вершин
-    sa: sa.clone(), sb: sb.clone(), sc: scc.clone(),
-    isSpecial,
-    flashTimer:   isSpecial ? Math.random()*20 : Infinity,
-    flashPhase:   Math.random()*Math.PI*2,
-    flashCooldown:0,
-    displacement: 0,
-    innerVis: 0,
-  });
-});
-
-// Appearance анимация
-gsap.to({v:0},{v:1,duration:2.8,delay:.3,ease:'power2.inOut',
-  onUpdate:function(){
-    const v=this.targets()[0].v;
-    faceMeshes.forEach(m=>{ m.material.opacity = v*.88; });
-    edgeMeshes.forEach(m=>{ m.material.opacity = v*.55; });
-  }
-});
-
-/* ════════════════════════════════════════════════════════
-   FACE ANIMATION SYSTEM
-   Каждая грань живёт по своим часам
-════════════════════════════════════════════════════════ */
-let faceT = 0;
-
-function updateFaces(globalT) {
-  faceT = globalT;
-
-  faceStates.forEach((fs, fi) => {
-    // Базовое дыхание — синусоидальное смещение вдоль нормали
-    const breath = Math.sin(faceT * fs.speed + fs.phase) * fs.amp;
-
-    // Flash — внезапное провалтивание внутрь
-    let flash = 0;
-    if(fs.isSpecial) {
-      fs.flashTimer -= 0.01 * fs.speed;
-      if(fs.flashTimer <= 0 && fs.flashCooldown <= 0) {
-        // Запускаем вспышку
-        fs.flashTimer   = 8 + Math.random()*25;
-        fs.flashCooldown = 2.5;
-      }
-      if(fs.flashCooldown > 0) {
-        fs.flashCooldown -= 0.016;
-        // Резкий провал и возврат
-        const t = 1 - (fs.flashCooldown / 2.5);
-        flash = -Math.sin(t * Math.PI) * 0.35;
-      }
-    }
-
-    fs.displacement = breath + flash;
-    const d = fs.displacement;
-
-    // Обновляем позиции вершин
-    const dv = fs.normal.clone().multiplyScalar(d);
-    const mesh  = faceMeshes[fi];
-    const imesh = innerMeshes[fi];
-    const emesh = edgeMeshes[fi];
-
-    const pa = fs.sa.clone().add(dv);
-    const pb = fs.sb.clone().add(dv);
-    const pc = fs.sc.clone().add(dv);
-
-    // face
-    const fp = mesh.geometry.attributes.position;
-    fp.array[0]=pa.x;fp.array[1]=pa.y;fp.array[2]=pa.z;
-    fp.array[3]=pb.x;fp.array[4]=pb.y;fp.array[5]=pb.z;
-    fp.array[6]=pc.x;fp.array[7]=pc.y;fp.array[8]=pc.z;
-    fp.needsUpdate=true;
-
-    // inner (same geo — shared)
-    imesh.geometry.attributes.position.needsUpdate=true;
-
-    // edges
-    const ep = emesh.geometry.attributes.position;
-    ep.array[0]=pa.x;ep.array[1]=pa.y;ep.array[2]=pa.z;
-    ep.array[3]=pb.x;ep.array[4]=pb.y;ep.array[5]=pb.z;
-    ep.array[6]=pb.x;ep.array[7]=pb.y;ep.array[8]=pb.z;
-    ep.array[9]=pc.x;ep.array[10]=pc.y;ep.array[11]=pc.z;
-    ep.array[12]=pc.x;ep.array[13]=pc.y;ep.array[14]=pc.z;
-    ep.array[15]=pa.x;ep.array[16]=pa.y;ep.array[17]=pa.z;
-    ep.needsUpdate=true;
-
-    // Чернота изнутри — видна при провале
-    const flashIntensity = Math.max(0, -d/0.35);
-    fs.innerVis += (flashIntensity - fs.innerVis) * .08;
-    imesh.material.opacity = fs.innerVis * 0.92;
-
-    // Грань которая провалилась — её наружная часть темнеет
-    if(d < -0.05) {
-      mesh.material.emissive.setScalar(Math.min(.15, Math.abs(d) * .4));
-      mesh.material.emissiveIntensity = Math.min(.4, Math.abs(d) * 1.2);
-      // рёбра становятся ярче
-      emesh.material.opacity = Math.min(.9, .55 + Math.abs(d)*1.5);
-    } else {
-      mesh.material.emissive.setScalar(.02);
-      mesh.material.emissiveIntensity = .04;
-      emesh.material.opacity = Math.min(.9, faceMeshes[0].material.opacity * .6);
-    }
-  });
-}
-
-/* ════════════════════════════════════════════════════════
-   AUTONOMOUS GROUP LIFE
-   Весь объект как единый организм
-════════════════════════════════════════════════════════ */
-// Дыхание масштаба
-const breathTl = gsap.timeline({repeat:-1,yoyo:true});
-breathTl.to(icoGroup.scale,{x:1.06,y:1.06,z:1.06,duration:5.2,ease:'sine.inOut'});
-
-// Покачивание — медленное, почти незаметное
-gsap.to(icoGroup.rotation,{y:Math.PI*.38, duration:26,repeat:-1,yoyo:true,ease:'sine.inOut'});
-gsap.to(icoGroup.rotation,{x:.16,        duration:20,repeat:-1,yoyo:true,ease:'sine.inOut'});
-gsap.to(icoGroup.rotation,{z:.08,        duration:32,repeat:-1,yoyo:true,ease:'sine.inOut'});
-
-// Парение по Y
-gsap.to(icoGroup.position,{y:.38,duration:6.4,repeat:-1,yoyo:true,ease:'sine.inOut'});
-
-// Медленное движение к зрителю и от него — ось Z
-gsap.to(icoGroup.position,{z:.4,duration:14,repeat:-1,yoyo:true,ease:'sine.inOut'});
-
-/* ════════════════════════════════════════════════════════
-   DEPTH PARTICLES
-   Частицы в пространстве — подчёркивают Z-глубину
-   Дальние мельче и прозрачнее
-════════════════════════════════════════════════════════ */
-function makeDepthParticles() {
-  const count = 280;
-  const positions = new Float32Array(count*3);
-  const sizes     = new Float32Array(count);
-  const alphas    = new Float32Array(count);
-
-  for(let i=0;i<count;i++){
-    const z = -2 - Math.random()*28;           // от -2 до -30 по Z
-    const spread = 4 + Math.abs(z)*.4;
-    positions[i*3]   = (Math.random()-.5)*spread*2;
-    positions[i*3+1] = (Math.random()-.5)*spread*1.2;
-    positions[i*3+2] = z;
-    sizes[i]  = 0.5 + Math.random()*1.5;       // мельче дальше
-    alphas[i] = (.1 + Math.random()*.15) * (1 - Math.abs(z)/32);
-  }
-
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(positions,3));
-  geo.setAttribute('size',     new THREE.BufferAttribute(sizes,1));
-
-  const mat = new THREE.PointsMaterial({
-    color:0x4a4845, size:.04, transparent:true, opacity:.14,
-    sizeAttenuation:true,
-  });
-
-  const pts = new THREE.Points(geo,mat);
-  pts.userData.positions = positions;
-  pts.userData.alphas    = alphas;
-  return pts;
-}
-const particles = makeDepthParticles();
-scene.add(particles);
-
-/* ════════════════════════════════════════════════════════
-   Z-DEPTH CAMERA PARALLAX
-   При движении мыши — камера смещается по X,Y,Z
-   Создаёт реальное ощущение объёмного пространства
-════════════════════════════════════════════════════════ */
-let camTargetX=0, camTargetY=0, camTargetZ=5.2;
-const CAM_BASE_Z = 5.2;
-
-// cursor → camera target
-const qCamX = gsap.quickTo(camera.position,'x',{duration:1.8,ease:'power2.out'});
-const qCamY = gsap.quickTo(camera.position,'y',{duration:1.8,ease:'power2.out'});
-const qCamZ = gsap.quickTo(camera.position,'z',{duration:2.2,ease:'power2.out'});
-
-window.addEventListener('mousemove',()=>{
-  // Горизонтальное и вертикальное смещение
-  qCamX((MX-.5)*-.6);
-  qCamY((MY-.5)*.4);
-  // Z — при движении к краям камера слегка отдаляется
-  const edgeDist = Math.max(Math.abs(MX-.5), Math.abs(MY-.5));
-  qCamZ(CAM_BASE_Z + edgeDist*.3);
-  // Cursor light
-  gsap.to(cLight.position,{x:(MX-.5)*5, y:-(MY-.5)*3.5, duration:1.4,ease:'power2.out'});
-},{passive:true});
-
-// Камера всегда смотрит на центр объекта
-function updateCamera() {
-  camera.lookAt(icoGroup.position.x*.15, icoGroup.position.y*.1, 0);
-}
-
-/* ════════════════════════════════════════════════════════
-   SCROLL → Z TRAVEL
-   Скролл двигает камеру по Z — путешествие в бездну
-════════════════════════════════════════════════════════ */
-let scrollZ = 0;
-window.addEventListener('wheel', e => {
-  scrollZ = Math.max(-18, Math.min(0, scrollZ - e.deltaY * .008));
-  gsap.to(camera.position, { z: CAM_BASE_Z + scrollZ, duration:.8, ease:'power2.out',
-    overwrite:'auto' });
-  // туман меняется
-  const newFog = .038 + Math.abs(scrollZ)*.004;
-  gsap.to(scene.fog,{density:newFog,duration:.8});
-  // объект в целом уменьшается — уходит вдаль
-  const scl = 1 - Math.abs(scrollZ)*.018;
-  gsap.to(icoGroup.scale,{x:scl,y:scl,z:scl,duration:.8,overwrite:'auto'});
-},{passive:true});
-
-/* ════════════════════════════════════════════════════════
-   MASTER RENDER
-════════════════════════════════════════════════════════ */
-let T=0;
-function render(){
-  requestAnimationFrame(render);
-  T += .0055;
-
-  // Живые грани
-  updateFaces(T);
-
-  // Камера смотрит на объект
-  updateCamera();
-
-  // Частицы — медленное вращение слоёв по Z
-  particles.rotation.z += .0002;
-  particles.rotation.y += .0001;
-
-  // Линии пространства — чуть дышат
-  spaceLines.rotation.y = Math.sin(T*.08)*.02;
-  spaceLines.rotation.x = Math.sin(T*.06)*.01;
-
-  renderer.render(scene,camera);
-}
-render();
-
-/* ════════════════════════════════════════════════════════
-   RESIZE
-════════════════════════════════════════════════════════ */
-window.addEventListener('resize',()=>{
-  camera.aspect=W()/H();
-  camera.updateProjectionMatrix();
+  /* ── RENDERER ──
+     На мобильных/тач: меньший pixelRatio и antialias:false снижают риск падения WebGL и "пустого" canvas
+  ── */
+  const canvas=document.getElementById('cv');
+  const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  const renderer=new THREE.WebGLRenderer({canvas,antialias:!isTouch,alpha:false,powerPreference:'high-performance'});
+  renderer.setPixelRatio(isTouch ? Math.min(devicePixelRatio,1.5) : Math.min(devicePixelRatio,2));
   renderer.setSize(W(),H());
-},{passive:true});
+  renderer.setClearColor(0xeeece7,1);
+  renderer.shadowMap.enabled=true;
+  renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  DBG.log('renderer OK','ok');
+
+  const scene=new THREE.Scene();
+  scene.fog=new THREE.FogExp2(0xeeece7,.026);
+
+  const camera=new THREE.PerspectiveCamera(52,W()/H(),.005,500);
+  camera.position.set(0,0,5.2);
+
+  /* ── LIGHTING ── */
+  const lAmb =new THREE.AmbientLight(0xf0ede6,.42);scene.add(lAmb);
+  scene.add(new THREE.HemisphereLight(0xf8f6f2,0xe8e4de,.28));
+  const lKey =new THREE.DirectionalLight(0xffffff,.88);
+  lKey.position.set(3,5,4);lKey.castShadow=true;
+  lKey.shadow.mapSize.setScalar(2048);lKey.shadow.radius=14;
+  lKey.shadow.camera.left=lKey.shadow.camera.bottom=-5;
+  lKey.shadow.camera.right=lKey.shadow.camera.top=5;
+  scene.add(lKey);
+  const lFill=new THREE.DirectionalLight(0xeeeae0,.18);lFill.position.set(-3,-2,2);scene.add(lFill);
+  const lBack=new THREE.DirectionalLight(0xe0e8f4,.22);lBack.position.set(0,.5,-8);scene.add(lBack);
+  const lCursor=new THREE.PointLight(0xfff8f0,.55,16);lCursor.position.set(0,0,4);scene.add(lCursor);
+
+  // Внутреннее освещение
+  const lIA=new THREE.AmbientLight(0x0c0a08,0);scene.add(lIA);
+  const lIF=new THREE.PointLight(0x28201a,0,22);scene.add(lIF);
+  const lIR=new THREE.PointLight(0x1a2030,0,16);lIR.position.set(0,0,2);scene.add(lIR);
+
+  // Свет для кубов (тень только от основного ключа lKey — одна тень от объекта)
+  const lCubeKey=new THREE.DirectionalLight(0xf8f6f2,0);
+  lCubeKey.position.set(2,8,3);lCubeKey.castShadow=false;
+  lCubeKey.shadow.mapSize.setScalar(1024);
+  lCubeKey.shadow.camera.left=lCubeKey.shadow.camera.bottom=-12;
+  lCubeKey.shadow.camera.right=lCubeKey.shadow.camera.top=12;
+  lCubeKey.shadow.radius=8;
+  scene.add(lCubeKey);
+
+  /* ── SHADOW PLANE + RINGS ── */
+  const sPlane=new THREE.Mesh(new THREE.PlaneGeometry(22,22),new THREE.ShadowMaterial({opacity:.07,transparent:true}));
+  sPlane.rotation.x=-Math.PI/2;sPlane.position.y=-2.2;sPlane.receiveShadow=true;scene.add(sPlane);
+  const sRings=[];
+  for(let i=0;i<5;i++){
+    const t=i/4,r=.5+t*2,pts=[];
+    for(let j=0;j<=80;j++){const a=j/80*Math.PI*2;pts.push(new THREE.Vector3(Math.cos(a)*r,0,Math.sin(a)*r*.18));}
+    const ring=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+      new THREE.LineBasicMaterial({color:0x4a4845,transparent:true,opacity:(1-t)*.042}));
+    ring.position.y=-2.18;ring.userData.op=(1-t)*.042;sRings.push(ring);scene.add(ring);
+  }
+
+  /* ── DEPTH GRID ── */
+  const depthGrp=new THREE.Group();
+  [-3,-6,-11,-18,-28].forEach((z,zi)=>{
+    const sz=18+Math.abs(z)*.7,op=.018*(1-zi*.13);
+    for(let iy=0;iy<5;iy++){
+      const y=-3+(iy/4)*7;
+      depthGrp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-sz,y,z),new THREE.Vector3(sz,y,z)]),new THREE.LineBasicMaterial({color:0x4a4845,transparent:true,opacity:op})));
+    }
+    for(let ix=0;ix<8;ix++){
+      const x=-sz+(ix/7)*sz*2;
+      depthGrp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x,-4,z),new THREE.Vector3(x,4,z)]),new THREE.LineBasicMaterial({color:0x4a4845,transparent:true,opacity:op*.5})));
+    }
+  });
+  scene.add(depthGrp);
+
+  /* ════════════════════════════════════════════════════════
+     ICOSAHEDRON — demiurge code, проверенный
+  ════════════════════════════════════════════════════════ */
+  const BASE_GEO=new THREE.IcosahedronGeometry(1,2); // detail=2 → 320 граней
+  const bPos=BASE_GEO.attributes.position;
+  const NFACES=bPos.count/3;
+
+  // Портальная грань — та что смотрит на камеру
+  let portalIdx=0,maxDot=-Infinity;
+  for(let fi=0;fi<NFACES;fi++){
+    const i3=fi*3;
+    const a=new THREE.Vector3().fromBufferAttribute(bPos,i3);
+    const b=new THREE.Vector3().fromBufferAttribute(bPos,i3+1);
+    const c=new THREE.Vector3().fromBufferAttribute(bPos,i3+2);
+    const n=new THREE.Vector3().crossVectors(new THREE.Vector3().subVectors(b,a),new THREE.Vector3().subVectors(c,a)).normalize();
+    if(n.z>maxDot){maxDot=n.z;portalIdx=fi;}
+  }
+  DBG.log('portal:'+portalIdx+' dot='+maxDot.toFixed(2),'ok');
+
+  const icoGrp=new THREE.Group();scene.add(icoGrp);
+
+  const fMeshes=[],iMeshes=[],eMeshes=[],fStates=[];
+
+  for(let fi=0;fi<NFACES;fi++){
+    const i3=fi*3;
+    const vA=new THREE.Vector3().fromBufferAttribute(bPos,i3);
+    const vB=new THREE.Vector3().fromBufferAttribute(bPos,i3+1);
+    const vC=new THREE.Vector3().fromBufferAttribute(bPos,i3+2);
+    const normal=new THREE.Vector3().crossVectors(new THREE.Vector3().subVectors(vB,vA),new THREE.Vector3().subVectors(vC,vA)).normalize();
+    const center=new THREE.Vector3().addVectors(vA,vB).add(vC).divideScalar(3);
+    const K=.962;
+    const sa=new THREE.Vector3().lerpVectors(center,vA,K);
+    const sb=new THREE.Vector3().lerpVectors(center,vB,K);
+    const sc=new THREE.Vector3().lerpVectors(center,vC,K);
+
+    const geo=new THREE.BufferGeometry();
+    geo.setAttribute('position',new THREE.BufferAttribute(new Float32Array([sa.x,sa.y,sa.z,sb.x,sb.y,sb.z,sc.x,sc.y,sc.z]),3));
+    geo.setAttribute('normal',new THREE.BufferAttribute(new Float32Array([normal.x,normal.y,normal.z,normal.x,normal.y,normal.z,normal.x,normal.y,normal.z]),3));
+
+    const isPortal=(fi===portalIdx);
+    const isSpecial=!isPortal&&Math.random()<.16;
+
+    const fMat=new THREE.MeshPhongMaterial({color:0xe8e4dc,emissive:new THREE.Color(.022,.018,.014),emissiveIntensity:1,shininess:12,specular:new THREE.Color(0xd0ccc4),transparent:true,opacity:0});
+    const fm=new THREE.Mesh(geo,fMat);fm.castShadow=true;icoGrp.add(fm);fMeshes.push(fm);
+
+    const iMat=new THREE.MeshPhongMaterial({color:0x060402,transparent:true,opacity:0,side:THREE.BackSide,shininess:0});
+    icoGrp.add(new THREE.Mesh(geo,iMat));iMeshes.push(iMat);
+
+    const eGeo=new THREE.BufferGeometry();
+    eGeo.setAttribute('position',new THREE.BufferAttribute(new Float32Array([sa.x,sa.y,sa.z,sb.x,sb.y,sb.z,sb.x,sb.y,sb.z,sc.x,sc.y,sc.z,sc.x,sc.y,sc.z,sa.x,sa.y,sa.z]),3));
+    const eMat=new THREE.LineBasicMaterial({color:0x3a3835,transparent:true,opacity:0});
+    const em=new THREE.LineSegments(eGeo,eMat);icoGrp.add(em);eMeshes.push(em);
+
+    // Расстояние от "фронта" — угол нормали к оси Z камеры
+    // При detail=2 нормали распределены гуще, ripple точнее
+    const distFromFront = clamp(1 - normal.z, 0, 2); // 0=смотрит на камеру, 2=смотрит от камеры
+
+    // Направление разлёта — предвычислено
+    const jitter=new THREE.Vector3((Math.random()-.5)*.35,(Math.random()-.5)*.35,(Math.random()-.5)*.35);
+    const explodeDir=normal.clone().add(jitter).normalize();
+    const explodeDist=1.9+Math.random()*2.2;
+
+    fStates.push({
+      sa:sa.clone(),sb:sb.clone(),sc:sc.clone(),
+      normal:normal.clone(),center:center.clone(),
+      isPortal,isSpecial,
+      phase:Math.random()*Math.PI*2,
+      speed:.28+Math.random()*.62,
+      amp:.035+Math.random()*.09,
+      flashT:isSpecial?Math.random()*18:Infinity,
+      flashCD:0,
+      innerV:0,
+      distFromFront,
+      explodeDir,
+      explodeDist,
+      rippleDisp:0, // дополнительное смещение от волны
+    });
+  }
+  DBG.log('faces: '+NFACES,'ok');
+
+  /* ── ЧЁРНОЕ ЯДРО — матовая сфера, горизонт событий
+     Видно снаружи всегда (слабо), при приближении и влёте — ярче и масштаб. Без «паутинки».
+  ── */
+  const coreGeo  = new THREE.SphereGeometry(0.22, 32, 24);
+  const coreMat  = new THREE.MeshStandardMaterial({
+    color: 0x080808,
+    roughness: 1.0,
+    metalness: 0.0,
+    transparent: true,
+    opacity: 0,
+    side: THREE.FrontSide,
+  });
+  const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+  coreMesh.position.set(0, 0, 0);
+  icoGrp.add(coreMesh);
+
+  function updateCore() {
+    const po  = S.portalOpen;
+    const ins = S.inside;
+
+    // Снаружи (Act I, I-rip, I-pre): ядро чуть видно как тёмная сфера в центре
+    const outsideVis = clamp(1 - S.explode * 2.5, 0, 1);
+    const outsideOpacity = 0.35 * outsideVis;
+    // При влёте и внутри — по-старому: заполняет экран
+    const insideOpacity = clamp(ins * 2.2, 0, 1) * clamp(1 - S.explode * 1.8, 0, 1);
+    coreMat.opacity = Math.max(outsideOpacity, insideOpacity);
+
+    const coreScale = 1.0 + clamp(po * 1.4, 0, 1) * 0.8;
+    coreMesh.scale.setScalar(coreScale);
+  }
+
+  /* ── PORTAL RING — контур портальной грани
+     Расходится и вращается вместе с гранью при влёте
+  ── */
+  const _portalState = fStates[portalIdx];
+  const _psa = _portalState.sa, _psb = _portalState.sb, _psc = _portalState.sc;
+
+  // LineLoop: три вершины портального треугольника
+  const portalRingGeo = new THREE.BufferGeometry();
+  portalRingGeo.setAttribute('position', new THREE.BufferAttribute(
+    new Float32Array([_psa.x,_psa.y,_psa.z, _psb.x,_psb.y,_psb.z, _psc.x,_psc.y,_psc.z]),3));
+  const portalRingMat = new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0,linewidth:1});
+  const portalRingMesh = new THREE.LineLoop(portalRingGeo, portalRingMat);
+  icoGrp.add(portalRingMesh);
+
+  // Состояние кольца
+  let portalRingScale = 1.0;
+  let portalRingAngle = 0;
+
+  function updatePortalRing() {
+    const po = S.portalOpen;
+    if (po < 0.01) {
+      portalRingMat.opacity = 0;
+      return;
+    }
+    // Появляется когда грань заполняет ~40% экрана (portalOpen > 0.55)
+    const vis = norm(po, 0.55, 0.85);
+    portalRingMat.opacity = vis * 0.72;
+
+    // Масштаб — расходится от 1.0 до 1.6
+    portalRingScale = 1.0 + vis * 0.6;
+
+    // Вращение против часовой стрелки — ускоряется по мере приближения
+    portalRingAngle -= (0.008 + vis * 0.025);
+
+    // Позиция совпадает с портальной гранью — следит за ней
+    const portalFace = fStates[portalIdx];
+    const portalDisp = portalFace.normal.clone().multiplyScalar(S.portalOpen * 6.2);
+
+    // Обновляем вершины кольца — то же что портальная грань, но масштабированы от центра
+    const center = portalFace.center.clone().add(portalDisp);
+    const pa = portalFace.sa.clone().add(portalDisp);
+    const pb = portalFace.sb.clone().add(portalDisp);
+    const pc = portalFace.sc.clone().add(portalDisp);
+
+    // Масштабируем от центра + вращение
+    const scale = portalRingScale;
+    const cos = Math.cos(portalRingAngle);
+    const sin = Math.sin(portalRingAngle);
+
+    function scaleRotPoint(p) {
+      const d = p.clone().sub(center).multiplyScalar(scale);
+      // Вращение в плоскости грани (вокруг её нормали)
+      const n = portalFace.normal;
+      // Rodrigues rotation
+      const cosA = cos, sinA = sin;
+      const rotated = d.clone().multiplyScalar(cosA)
+        .add(n.clone().cross(d).multiplyScalar(sinA))
+        .add(n.clone().multiplyScalar(n.dot(d) * (1 - cosA)));
+      return center.clone().add(rotated);
+    }
+
+    const ra = scaleRotPoint(pa);
+    const rb = scaleRotPoint(pb);
+    const rc = scaleRotPoint(pc);
+
+    const rp = portalRingMesh.geometry.attributes.position;
+    rp.array.set([ra.x,ra.y,ra.z, rb.x,rb.y,rb.z, rc.x,rc.y,rc.z]);
+    rp.needsUpdate = true;
+  }
+
+  // Appearance
+  gsap.to({v:0},{v:1,duration:2.8,delay:.4,ease:'power2.inOut',
+    onUpdate:function(){
+      const v=this.targets()[0].v;
+      fMeshes.forEach((m,i)=>{m.material.opacity=v*(fStates[i].isPortal ? .92 : .87);});
+      eMeshes.forEach(m=>{m.material.opacity=v*.44;});
+    }
+  });
+
+  // Автономная жизнь (как в demiurge)
+  gsap.timeline({repeat:-1,yoyo:true}).to(icoGrp.scale,{x:1.055,y:1.055,z:1.055,duration:5.2,ease:'sine.inOut'});
+  gsap.to(icoGrp.rotation,{y:Math.PI*.35,duration:28,repeat:-1,yoyo:true,ease:'sine.inOut'});
+  gsap.to(icoGrp.rotation,{x:.14,         duration:22,repeat:-1,yoyo:true,ease:'sine.inOut'});
+  gsap.to(icoGrp.position,{y:.35,         duration:6.4,repeat:-1,yoyo:true,ease:'sine.inOut'});
+  gsap.to(icoGrp.position,{z:.28,         duration:15, repeat:-1,yoyo:true,ease:'sine.inOut'});
+
+  /* ── ROOM — правильный купол икосаэдра изнутри ──
+     detail=1 → 80 граней, каждая отдельный Mesh (BackSide)
+     Масштаб 7 — камера на Z=-3 находится внутри
+     Белые грани + яркие рёбра на чёрном фоне
+  ── */
+  const roomGrp = new THREE.Group();
+  scene.add(roomGrp);
+  roomGrp.scale.setScalar(7);
+
+  const rBase = new THREE.IcosahedronGeometry(1, 1); // detail=1 = 80 граней
+  const rbP   = rBase.attributes.position;
+  const roomFaces = [];
+
+  for (let fi = 0; fi < rbP.count / 3; fi++) {
+    const i3 = fi * 3;
+    const a = new THREE.Vector3().fromBufferAttribute(rbP, i3);
+    const b = new THREE.Vector3().fromBufferAttribute(rbP, i3+1);
+    const c = new THREE.Vector3().fromBufferAttribute(rbP, i3+2);
+
+    const normal = new THREE.Vector3()
+      .crossVectors(new THREE.Vector3().subVectors(b,a), new THREE.Vector3().subVectors(c,a))
+      .normalize();
+    const center = new THREE.Vector3().addVectors(a, b).add(c).divideScalar(3);
+
+    // Чуть уменьшаем грань для видимых зазоров
+    const K = 0.97;
+    const ra = new THREE.Vector3().lerpVectors(center, a, K);
+    const rb_ = new THREE.Vector3().lerpVectors(center, b, K);
+    const rc = new THREE.Vector3().lerpVectors(center, c, K);
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(
+      new Float32Array([ra.x,ra.y,ra.z, rb_.x,rb_.y,rb_.z, rc.x,rc.y,rc.z]), 3));
+    geo.setAttribute('normal', new THREE.BufferAttribute(
+      new Float32Array([normal.x,normal.y,normal.z, normal.x,normal.y,normal.z, normal.x,normal.y,normal.z]), 3));
+
+    // Грань — белая изнутри
+    const rMat = new THREE.MeshPhongMaterial({
+      color: 0xd8d4cc, emissive: new THREE.Color(.018, .015, .01),
+      emissiveIntensity: 1, shininess: 4,
+      transparent: true, opacity: 0, side: THREE.BackSide,
+    });
+    roomGrp.add(new THREE.Mesh(geo, rMat));
+
+    // Рёбра
+    const eGeo = new THREE.BufferGeometry();
+    eGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+      ra.x,ra.y,ra.z,  rb_.x,rb_.y,rb_.z,
+      rb_.x,rb_.y,rb_.z, rc.x,rc.y,rc.z,
+      rc.x,rc.y,rc.z,  ra.x,ra.y,ra.z,
+    ]), 3));
+    const reMat = new THREE.LineBasicMaterial({ color: 0xb8b4ac, transparent: true, opacity: 0 });
+    roomGrp.add(new THREE.LineSegments(eGeo, reMat));
+
+    roomFaces.push({ rMat, reMat, phase: Math.random() * Math.PI * 2 });
+  }
+  DBG.log('room faces: ' + roomFaces.length, 'ok');
+
+  /* ── CUBES (Act VI) ── */
+  const cubeGrp=new THREE.Group();scene.add(cubeGrp);
+  const cubeSP=new THREE.Mesh(new THREE.PlaneGeometry(40,40),new THREE.ShadowMaterial({opacity:.1,transparent:true}));
+  cubeSP.rotation.x=-Math.PI/2;cubeSP.position.y=-3.5;cubeSP.receiveShadow=true;scene.add(cubeSP);
+  const cubeData=[];
+  for(let i=0;i<18;i++){
+    const sz=.28+Math.random()*.92;
+    const mat=new THREE.MeshPhongMaterial({color:0xeae8e2,shininess:8,specular:new THREE.Color(0xd0ccc4),transparent:true,opacity:0});
+    const mesh=new THREE.Mesh(new THREE.BoxGeometry(sz,sz,sz),mat);
+    mesh.castShadow=true;mesh.receiveShadow=true;
+    const x=(Math.random()-.5)*10,z=-1+Math.random()*-4;
+    const baseY=-6-Math.random()*3;
+    mesh.position.set(x,baseY,z);
+    mesh.rotation.set(Math.random()*Math.PI,Math.random()*Math.PI,Math.random()*Math.PI);
+    cubeGrp.add(mesh);
+    cubeData.push({mesh,mat,baseY,x,z,floatS:.4+Math.random()*.5,floatA:.07+Math.random()*.14,floatPh:Math.random()*Math.PI*2,rotS:new THREE.Vector3((Math.random()-.5)*.005,(Math.random()-.5)*.008,(Math.random()-.5)*.004),delay:i/18});
+  }
+
+  /* ── VOID SHADER ── */
+  const cvVoid=document.getElementById('cv-void');
+  const vgl=cvVoid.getContext('webgl');
+  let voidU=null,vT=0;
+
+  function resizeVoid(){
+    if(!vgl)return;
+    const dpr=Math.min(devicePixelRatio,2);
+    cvVoid.width=W()*dpr;cvVoid.height=H()*dpr;
+    cvVoid.style.width=W()+'px';cvVoid.style.height=H()+'px';
+    vgl.viewport(0,0,cvVoid.width,cvVoid.height);
+  }
+  resizeVoid();
+
+  ;(function initVoid(){
+    if(!vgl){DBG.log('no webgl','w');return;}
+    const v=`attribute vec2 a;varying vec2 uv;void main(){uv=a*.5+.5;gl_Position=vec4(a,0,1);}`;
+    const f=`precision highp float;varying vec2 uv;uniform float t,absorb,drain;
+    float h(vec2 p){p=fract(p*vec2(127.1,311.7));p+=dot(p,p+45.32);return fract(p.x*p.y);}
+    float n(vec2 p){vec2 i=floor(p),f=fract(p),u=f*f*(3.-2.*f);return mix(mix(h(i),h(i+vec2(1,0)),u.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),u.x),u.y);}
+    float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<6;i++){v+=a*n(p);p*=2.12;a*=.48;}return v;}
+    void main(){
+      vec2 fr=vec2(uv.x-.5,uv.y);float dist=length(fr*vec2(.9,1.15));
+      float edge=fbm(vec2(uv.x*3.+t*.09,uv.y*2.-t*.07))*.2+fbm(vec2(uv.x*7.-t*.06,uv.y*4.+t*.12))*.07;
+      float thr=pow(fbm(vec2(uv.x*9.+t*.15,uv.y*5.+t*.09)),.4)*.1*absorb;
+      float ab=1.-smoothstep(-.05,.05,dist-(absorb*1.3-.15)+edge+thr);
+      float dy=1.-uv.y;float dn=fbm(vec2(uv.x*4.+t*.08,dy*3.-t*.1))*.14;
+      float da=1.-smoothstep(-.05,.05,dy-(drain*1.35-.1+dn));
+      float fin=ab*(1.-da);
+      float s=fbm(uv*1.8+t*.03)*.055;
+      vec3 c=vec3(.026+s*.85,.024+s*.8,.02+s*.65);
+      gl_FragColor=vec4(c,clamp(fin,0.,1.));}`;
+    const vs=vgl.createShader(vgl.VERTEX_SHADER);vgl.shaderSource(vs,v);vgl.compileShader(vs);
+    const fs=vgl.createShader(vgl.FRAGMENT_SHADER);vgl.shaderSource(fs,f);vgl.compileShader(fs);
+    if(!vgl.getShaderParameter(fs,vgl.COMPILE_STATUS)){DBG.log('shader:'+vgl.getShaderInfoLog(fs).slice(0,50),'e');return;}
+    const p=vgl.createProgram();vgl.attachShader(p,vs);vgl.attachShader(p,fs);vgl.linkProgram(p);vgl.useProgram(p);
+    const buf=vgl.createBuffer();vgl.bindBuffer(vgl.ARRAY_BUFFER,buf);
+    vgl.bufferData(vgl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),vgl.STATIC_DRAW);
+    const loc=vgl.getAttribLocation(p,'a');vgl.enableVertexAttribArray(loc);vgl.vertexAttribPointer(loc,2,vgl.FLOAT,false,0,0);
+    vgl.enable(vgl.BLEND);vgl.blendFunc(vgl.SRC_ALPHA,vgl.ONE_MINUS_SRC_ALPHA);
+    voidU={p,uT:vgl.getUniformLocation(p,'t'),uA:vgl.getUniformLocation(p,'absorb'),uD:vgl.getUniformLocation(p,'drain')};
+    DBG.log('void shader OK','ok');
+  })();
+
+  function renderVoid(){
+    if(!voidU||!vgl)return;
+    vgl.clear(vgl.COLOR_BUFFER_BIT);
+    vgl.uniform1f(voidU.uT,vT);vgl.uniform1f(voidU.uA,S.voidAbsorb);vgl.uniform1f(voidU.uD,S.voidDrain);
+    vgl.drawArrays(vgl.TRIANGLE_STRIP,0,4);
+  }
+
+  /* ════════════════════════════════════════════════════════
+     SCENE STATE
+  ════════════════════════════════════════════════════════ */
+  const S={
+    act:'I', prog:0,
+    ripple:0,      // 0→1: волна по граням
+    spinUp:0,      // 0→1: ускорение вращения
+    portalOpen:0,  // 0→1: портальная грань улетает
+    explode:0,     // 0→1: грани разлетаются
+    inside:0,      // 0→1: мы внутри
+    roomVis:0,     // 0→1: комната видна
+    whiteVis:0,
+    voidAbsorb:0,
+    voidDrain:0,
+    cubesVis:0,
+    camZ:5.2,
+  };
+
+  /* ════════════════════════════════════════════════════════
+     FACE UPDATE — demiurge logic + ripple + explode
+  ════════════════════════════════════════════════════════ */
+  let T=0;
+
+  function updateFaces(){
+    fStates.forEach((fs,fi)=>{
+      // Базовое дыхание — затухает при разлёте
+      const bMul=clamp(1-S.explode*3,0,1);
+      const breath=bMul>0?Math.sin(T*fs.speed+fs.phase)*fs.amp*bMul:0;
+
+      // Flash особых граней
+      let flash=0;
+      if(fs.isSpecial&&S.explode<.05){
+        fs.flashT-=.01*fs.speed;
+        if(fs.flashT<=0&&fs.flashCD<=0){fs.flashT=8+Math.random()*22;fs.flashCD=2.4;}
+        if(fs.flashCD>0){fs.flashCD-=.016;flash=-Math.sin((1-fs.flashCD/2.4)*Math.PI)*.34;}
+      }
+
+      // RIPPLE — меридиан волны проходит по всей поверхности сферы
+      // S.ripple: 0→1 линейно (фронт волны)
+      // distFromFront: 0=передняя полусфера, 2=задняя
+      // Волна = узкий пик, движущийся от 0 к 2
+      let ripple = 0;
+      if (S.ripple > 0) {
+        const waveFront = S.ripple * 2.2; // фронт движется 0→2.2
+        const dist = fs.distFromFront;
+        const localT = waveFront - dist;
+        // Узкий гауссов пик — ширина 0.35 — как меридиан
+        if (localT > -0.4 && localT < 0.9) {
+          const t01 = (localT + 0.4) / 1.3;
+          ripple = Math.sin(t01 * Math.PI) * fs.amp * 4.8;
+        }
+      }
+
+      // Разлёт
+      const dExplode=fs.isPortal
+        ? fs.normal.clone().multiplyScalar(S.portalOpen*6.2)
+        : fs.explodeDir.clone().multiplyScalar(S.explode*fs.explodeDist);
+
+      const disp=fs.normal.clone().multiplyScalar(breath+flash+ripple).add(dExplode);
+      const pa=fs.sa.clone().add(disp);
+      const pb=fs.sb.clone().add(disp);
+      const pc=fs.sc.clone().add(disp);
+
+      const fp=fMeshes[fi].geometry.attributes.position;
+      fp.array.set([pa.x,pa.y,pa.z,pb.x,pb.y,pb.z,pc.x,pc.y,pc.z]);fp.needsUpdate=true;
+
+      const ep=eMeshes[fi].geometry.attributes.position;
+      ep.array.set([pa.x,pa.y,pa.z,pb.x,pb.y,pb.z,pb.x,pb.y,pb.z,pc.x,pc.y,pc.z,pc.x,pc.y,pc.z,pa.x,pa.y,pa.z]);
+      ep.needsUpdate=true;
+
+      // Чернота изнанки
+      const fd=Math.max(0,-(breath+flash)/.34);
+      fs.innerV+=(fd-fs.innerV)*.07;
+      iMeshes[fi].opacity=fs.innerV*.82+S.inside*.2;
+
+      // Портальная грань — светится перед открытием
+      if(fs.isPortal){
+        const pre=norm(S.portalOpen,0,.3);
+        fMeshes[fi].material.emissive.setRGB(.5*pre,.4*pre,.24*pre);
+        fMeshes[fi].material.emissiveIntensity=pre*.6;
+        fMeshes[fi].material.opacity=clamp(.92*(1-S.portalOpen*2.6),0,.92);
+        eMeshes[fi].material.opacity=clamp(.44+pre*.28-S.portalOpen*1.8,0,1);
+      } else {
+        const fadeOut=clamp(1-S.inside*1.4,0,1);
+        fMeshes[fi].material.opacity=.87*fadeOut;
+        eMeshes[fi].material.opacity=.44*fadeOut;
+        if(breath+flash<-.04){fMeshes[fi].material.emissive.setScalar(Math.min(.11,Math.abs(breath+flash)*.3));}
+        else{fMeshes[fi].material.emissive.setScalar(.022);}
+      }
+    });
+  }
+
+  function updateRoom(){
+    roomFaces.forEach((rf,i)=>{
+      const b=1+Math.sin(T*.16+rf.phase)*.007;
+      rf.rMat.opacity=S.roomVis*.22*b;
+      rf.reMat.opacity=S.roomVis*.5*(.7+Math.sin(T*.28+rf.phase+1)*.3);
+    });
+    if(S.roomVis>.01)roomGrp.rotation.y+=.00012;
+  }
+
+  function updateCubes(){
+    if(S.cubesVis<=0)return;
+    cubeData.forEach(cd=>{
+      const lt=clamp(S.cubesVis-cd.delay*.4,0,1);
+      const ly=lerp(cd.baseY,.5,Math.pow(lt,.7));
+      cd.mesh.position.set(cd.x,ly+Math.sin(T*cd.floatS+cd.floatPh)*cd.floatA,cd.z);
+      cd.mesh.rotation.x+=cd.rotS.x;cd.mesh.rotation.y+=cd.rotS.y;cd.mesh.rotation.z+=cd.rotS.z;
+      cd.mat.opacity=lt*.92;
+    });
+  }
+
+  /* ════════════════════════════════════════════════════════
+     CURSOR PARALLAX
+  ════════════════════════════════════════════════════════ */
+  const qCX=gsap.quickTo(camera.position,'x',{duration:1.8,ease:'power2.out'});
+  const qCY=gsap.quickTo(camera.position,'y',{duration:1.8,ease:'power2.out'});
+  window.addEventListener('mousemove',()=>{
+    if(S.inside>.5)return;
+    const b=clamp(1-S.inside*2,0,1);
+    qCX((Ptr.x-.5)*-.5*b);qCY((Ptr.y-.5)*.35*b);
+    gsap.to(lCursor.position,{x:(Ptr.x-.5)*5,y:-(Ptr.y-.5)*3.5,duration:1.4,ease:'power2.out'});
+  },{passive:true});
+
+  /* ════════════════════════════════════════════════════════
+     HUD REFS
+  ════════════════════════════════════════════════════════ */
+  const H1=document.getElementById('h1');
+  const H3=document.getElementById('h3');
+  const H4=document.getElementById('h4');
+  const H5=document.getElementById('h5');
+  const H6=document.getElementById('h6');
+
+  const flashEl=document.getElementById('flash');
+  let flashFired=false;
+
+  /* ════════════════════════════════════════════════════════
+     SCROLL CHOREOGRAPHY — 2000vh
+     0.00–0.04  I       Hero
+     0.04–0.14  I-rip   Волна (старт с ~1%)
+     0.14–0.24  I-pre   Предчувствие
+     0.24–0.40  II      Портал
+     0.40–0.49  II-fly  Пролёт + flash
+     0.49–0.65  III     Внутри [PIN]
+     0.65–0.72  →IV     К белому
+     0.72–0.79  IV      Преддверье
+     0.79–0.87  V-abs   Поглощение
+     0.87–0.92  V-ui    Из тьмы
+     0.92–1.00  VI      Стекание + кубы [PIN]
+  ════════════════════════════════════════════════════════ */
+  ScrollTrigger.create({
+    trigger:'#scroll-track', start:'top top', end:'bottom bottom',
+    scrub: 1.8,
+    onUpdate(self){
+      const p = self.progress;
+      S.prog = p;
+      document.getElementById('prog').style.width = (p*100)+'%';
+
+      const setBg    = (hex,fd) => { renderer.setClearColor(hex,1); scene.fog.color.set(hex); scene.fog.density=fd; };
+      const setBgRGB = (r,g,b,fd) => { renderer.setClearColor(new THREE.Color(r,g,b),1); scene.fog.color.setRGB(r,g,b); scene.fog.density=fd; };
+
+      if (p < .04) {
+        S.act='I';
+        S.ripple=0; S.spinUp=0; S.portalOpen=0; S.explode=0; S.inside=0;
+        S.roomVis=0; S.voidAbsorb=0; S.voidDrain=0; S.cubesVis=0; S.camZ=5.2;
+        lAmb.intensity=.42; lKey.intensity=.88;
+        lIA.intensity=0; lIF.intensity=0; lIR.intensity=0; lCubeKey.intensity=0;
+        setBg(0xeeece7, .026);
+        sRings.forEach(r => r.material.opacity = r.userData.op);
+        H1.style.opacity='1'; H3.style.opacity='0'; H4.style.opacity='0';
+        H5.style.opacity='0'; H6.style.opacity='0';
+        cvVoid.style.opacity='0';
+      }
+      else if (p < .14) {
+        S.act='I-rip';
+        const t = norm(p, .01, .14);
+        S.ripple  = t;
+        S.spinUp  = Math.sin(t * Math.PI) * 0.18;
+        S.camZ    = 5.2 - t * .22;
+        H1.style.opacity = String(1 - t*.1);
+        cvVoid.style.opacity='0';
+      }
+      else if (p < .24) {
+        S.act='I-pre';
+        const t = norm(p, .14, .24);
+        S.ripple=0; S.spinUp=0; S.portalOpen=0; S.inside=t*.14;
+        S.camZ = 4.98 - t * .9;
+        lKey.intensity = .88*(1-t*.12);
+        H1.style.opacity = String(1 - t*.38);
+        cvVoid.style.opacity='0';
+      }
+      else if (p < .40) {
+        S.act='II';
+        const t = norm(p, .24, .40);
+        S.portalOpen = clamp(t*1.7, 0, 1);
+        S.explode    = t * .58;
+        S.inside     = t;
+        S.camZ       = 4.1 - t * 5.2;
+        lAmb.intensity   = .42*(1-t*.82);
+        lKey.intensity   = .88*(1-t*.96);
+        lIF.intensity    = t * .12;
+        sRings.forEach(r => r.material.opacity = r.userData.op*(1-t));
+        const bg = Math.max(10, Math.round(238*(1-t*.97)));
+        setBgRGB(bg/255, bg/255*.988, bg/255*.969, .026+t*.1);
+        H1.style.opacity = String(clamp(1-t*2.8, 0, 1));
+        cvVoid.style.opacity='0';
+      }
+      else if (p < .49) {
+        S.act='II-fly';
+        const t = norm(p, .40, .49);
+        S.portalOpen=1; S.explode=.58+t*.42;
+        S.inside=1; S.roomVis=t*.8;
+        S.camZ = -1.1 - t*1.5;
+        lAmb.intensity=0; lKey.intensity=0;
+        lIA.intensity=t*.24; lIF.intensity=.12+t*.3; lIR.intensity=t*.18;
+        const bg = Math.max(8, Math.round(12+t*6));
+        setBgRGB(bg/256, bg/265, bg/278, .06+t*.02);
+        H1.style.opacity='0';
+        cvVoid.style.opacity='0';
+        if (t>.22 && t<.45 && !flashFired) {
+          flashFired=true;
+          gsap.killTweensOf(flashEl);
+          gsap.set(flashEl, {opacity:0});
+          gsap.to(flashEl, {opacity:.92, duration:.04,
+            onComplete:()=>gsap.to(flashEl,{opacity:0,duration:.7,ease:'power2.out'})});
+        }
+        if (t<.05) flashFired=false;
+      }
+      else if (p < .65) {
+        S.act='III';
+        const t = norm(p, .49, .65);
+        S.portalOpen=1; S.explode=1; S.inside=1;
+        S.roomVis = Math.min(1, t*2.1);
+        S.camZ = -2.6 - t*.7;
+        lIA.intensity=.24+t*.06; lIF.intensity=.42+t*.08; lIR.intensity=.18+t*.05;
+        setBgRGB(.048, .044, .038, .040);
+        H3.style.opacity = t>.18 ? String(norm(t,.18,1)) : '0';
+        H1.style.opacity='0'; H4.style.opacity='0';
+        cvVoid.style.opacity='0';
+      }
+      else if (p < .72) {
+        S.act='III-IV';
+        const t = norm(p, .65, .72);
+        S.roomVis = 1-t;
+        S.camZ = -3.3 - t*.3;
+        const bg = lerp(.048, .934, t);
+        setBgRGB(bg, bg*.992, bg*.974, lerp(.040,.024,t));
+        lIA.intensity=.3*(1-t); lIF.intensity=.5*(1-t); lIR.intensity=.23*(1-t);
+        lAmb.intensity=t*.28; lKey.intensity=t*.22;
+        H3.style.opacity = String(clamp(1-t*1.6, 0, 1));
+        H4.style.opacity='0';
+        cvVoid.style.opacity='0';
+      }
+      else if (p < .79) {
+        S.act='IV';
+        const t = norm(p, .72, .79);
+        S.roomVis=0; S.camZ=-3.6; S.whiteVis=t;
+        lAmb.intensity=.3+t*.1; lKey.intensity=.22+t*.1;
+        lIA.intensity=0; lIF.intensity=0; lIR.intensity=0;
+        setBg(0xeeeae4, .022);
+        H3.style.opacity='0';
+        H4.style.opacity = t>.12 ? String(norm(t,.12,1)) : '0';
+        H5.style.opacity='0';
+        cvVoid.style.opacity='0';
+      }
+      else if (p < .87) {
+        S.act='V-abs';
+        const t = norm(p, .79, .87);
+        S.voidAbsorb=t; S.camZ=-3.6; S.whiteVis=1-t;
+        lAmb.intensity=.4*(1-t*.9); lKey.intensity=.32*(1-t);
+        const bg = Math.max(10, Math.round(238*(1-t*.97)));
+        setBgRGB(bg/255, bg/255*.992, bg/255*.974, .022+t*.06);
+        H4.style.opacity = String(clamp(1-t*1.5, 0, 1));
+        H5.style.opacity='0';
+        cvVoid.style.opacity='1';
+      }
+      else if (p < .92) {
+        S.act='V-ui';
+        const t = norm(p, .87, .92);
+        S.voidAbsorb=1; S.voidDrain=0; S.camZ=-3.6;
+        lAmb.intensity=0; lKey.intensity=0;
+        lIA.intensity=t*.2; lIF.intensity=t*.3;
+        const bg = Math.max(8, Math.round(10+t*5));
+        setBgRGB(bg/256, bg/265, bg/280, .05);
+        H4.style.opacity='0';
+        H5.style.opacity = t>.18 ? String(norm(t,.18,1)) : '0';
+        cvVoid.style.opacity='1';
+      }
+      else {
+        S.act='VI';
+        const t = norm(p, .92, 1.0);
+        S.voidAbsorb=1; S.voidDrain=t; S.cubesVis=t;
+        S.camZ = -3.6 + t*.5;
+        lAmb.intensity=t*.38; lKey.intensity=t*.32;
+        lIA.intensity=.2*(1-t); lIF.intensity=.3*(1-t);
+        lCubeKey.intensity=t*.9;
+        const bg = lerp(.038, .936, t);
+        setBgRGB(bg, bg*.992, bg*.974, lerp(.05,.022,t));
+        H5.style.opacity = String(clamp(1-t*1.9, 0, 1));
+        H6.style.opacity = t>.08 ? String(norm(t,.08,1)) : '0';
+        cvVoid.style.opacity = String(clamp(1-t*1.3, 0, 1));
+        document.getElementById('p1')?.classList.toggle('vis', t>.16);
+        document.getElementById('p2')?.classList.toggle('vis', t>.40);
+        document.getElementById('p3')?.classList.toggle('vis', t>.66);
+      }
+
+      gsap.to(camera.position, {z:S.camZ, duration:.28, overwrite:'auto'});
+      const dark = S.inside>.5 && S.whiteVis<.5;
+      $cur.style.background   = dark ? '#c8c4bc' : '#2a2927';
+      $ring.style.borderColor = dark ? 'rgba(200,196,188,.28)' : 'rgba(191,187,178,.5)';
+      DBG.update(S);
+    }
+  });
+
+  /* ════════════════════════════════════════════════════════
+     RENDER LOOP
+  ════════════════════════════════════════════════════════ */
+  function render(){
+    requestAnimationFrame(render);
+    T+=.005;vT+=.01;
+
+    updateFaces();
+    updatePortalRing();
+    updateCore();
+    updateRoom();
+    updateCubes();
+    renderVoid();
+
+    // spinUp — лёгкое ускорение вращения при ripple
+    if (S.spinUp > 0) {
+      icoGrp.rotation.y += S.spinUp * 0.004;
+    }
+
+    // Плавный lookAt — без резкого разворота при влёте (не 180°)
+    const lookTarget = camera.userData.lookTarget || new THREE.Vector3(0,0,0);
+    let wantX, wantY, wantZ;
+    if (S.inside < .8) {
+      wantX = icoGrp.position.x * .08; wantY = icoGrp.position.y * .06; wantZ = 0;
+    } else if (S.cubesVis > .1) {
+      wantX = 0; wantY = .4 + S.cubesVis * .3; wantZ = -4;
+    } else {
+      wantX = Math.sin(T * .08) * .28; wantY = Math.cos(T * .06) * .18; wantZ = -10;
+    }
+    lookTarget.x += (wantX - lookTarget.x) * .04;
+    lookTarget.y += (wantY - lookTarget.y) * .04;
+    lookTarget.z += (wantZ - lookTarget.z) * .04;
+    camera.userData.lookTarget = lookTarget;
+    camera.lookAt(lookTarget);
+
+    depthGrp.rotation.y=Math.sin(T*.055)*.01;
+    renderer.render(scene,camera);
+    DBG.tick();
+  }
+  render();
+  DBG.log('loop OK','ok');
+
+  window.addEventListener('resize',()=>{
+    camera.aspect=W()/H();camera.updateProjectionMatrix();
+    renderer.setSize(W(),H());resizeVoid();ScrollTrigger.refresh();
+  },{passive:true});
+
+}); // waitDeps
 </script>
 </body>
 </html>
